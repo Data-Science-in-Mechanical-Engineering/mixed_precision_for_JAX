@@ -1,0 +1,180 @@
+"""
+MIT License
+
+Copyright (c) 2025 Alexander Gräfe
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+Tools for mixer precision training. Methods and general code architecture are from jmp https://github.com/google-deepmind/jmp. This can be seen as a port and extension of JMP tot equinox.
+"""
+
+"""
+Functions for casting of Pytrees.
+"""
+
+import jax
+import jax.numpy as jnp
+import equinox as eqx
+
+from jaxtyping import Array, Float, Int, PyTree, PRNGKeyArray 
+
+from .dtypes import HALF_PRECISION_DATATYPE
+
+def cast_tree(tree: PyTree, dtype):
+    """
+    Casts all array elements in a PyTree to a specified data type.
+    This function traverses a PyTree and applies a type casting operation to all array elements, leaving non-array elements unchanged.
+    Args:
+        tree (PyTree): The input PyTree containing arrays and other objects.
+        dtype (numpy.dtype or str): The target data type to cast the arrays to.
+    Returns:
+        PyTree: A new PyTree with all array elements cast to the specified data type.
+    """
+    
+    def _cast(x):
+        if eqx.is_array(x):
+            return x.astype(dtype)
+        else:
+            return x
+    return jax.tree_util.tree_map(_cast, tree)
+
+
+def cast_to_float32(x: PyTree) -> PyTree:
+    """
+    Cast the input PyTree to `float32` data type.
+
+    This function takes a PyTree and casts all its elements to the `float32` data type.
+
+    Args:
+        x (PyTree): The input PyTree containing elements to be cast.
+
+    Returns:
+        PyTree: A new PyTree with all elements cast to `float32`.
+    """
+    """Cast to float32."""
+    return cast_tree(x, jnp.float32)
+
+
+def cast_to_float16(x: PyTree) -> PyTree:
+    """
+    Casts all elements of a PyTree to the float16 data type.
+
+    Args:
+        x (PyTree): A PyTree containing numerical data to be cast to float16.
+
+    Returns:
+        PyTree: A new PyTree with all numerical elements cast to float16.
+    """
+    return cast_tree(x, jnp.float16)
+
+
+def cast_to_bfloat16(x: PyTree) -> PyTree:
+    """
+    Casts the input PyTree to the bfloat16 data type.
+
+    Args:
+        x (PyTree): A PyTree structure containing arrays or tensors to be cast.
+
+    Returns:
+        PyTree: A PyTree with all arrays or tensors cast to the bfloat16 data type.
+    """
+    return cast_tree(x, jnp.bfloat16)
+
+
+def cast_to_full_precision(x: PyTree) -> PyTree:
+    """
+    Casts all elements of a PyTree to full precision (float32).
+
+    Args:
+        x (PyTree): The input PyTree containing elements to be cast.
+
+    Returns:
+        PyTree: A new PyTree with all elements cast to float32 precision.
+    """
+    """Cast to full precision (float32)."""
+    return cast_tree(x, jnp.float32)
+
+def cast_to_half_precision(x: PyTree) -> PyTree:
+    """
+    Cast the input PyTree to half precision.
+
+    This function converts all elements in the input PyTree to the half-precision
+    datatype (either `float16` or `bfloat16`), depending on the configuration set
+    by `set_half_precision_datatype`.
+
+    Args:
+        x (PyTree): The input PyTree containing elements to be cast to half precision.
+
+    Returns:
+        PyTree: A new PyTree with all elements cast to the half-precision datatype.
+    """
+    """Cast to half precision (float16/bfloat16, depending on with what we called set_half_precision_datatype)."""
+    return cast_tree(x, HALF_PRECISION_DATATYPE)
+
+
+def force_full_precision(func, return_dtype=jnp.float16):
+    """
+    A decorator to enforce full precision (float32) for the inputs and outputs of a function.
+    This decorator ensures that all array arguments passed to the decorated function are 
+    converted to float32 precision before the function is executed. Additionally, it converts 
+    the outputs of the function to the specified `return_dtype` if they are arrays.
+    Args:
+        func (callable): The function to be decorated.
+        return_dtype (dtype): The desired data type for the function's output arrays.
+    Returns:
+        callable: The wrapped function with enforced input and output precision.
+    Example:
+        @force_full_precision
+        def my_function(x, y):
+            return x + y
+        # All array inputs to `my_function` will be cast to float32, and the output
+        # will be cast to the specified `return_dtype` if it is an array.
+    """
+
+    def wrapper(*args, **kwargs):
+        args_full_precision = []
+        for arg in args:
+            if eqx.is_array(arg):
+                args_full_precision.append(arg.astype(jnp.float32))
+            else:
+                args_full_precision.append(arg)
+        args_full_precision = tuple(args_full_precision)
+
+        kwargs_full_precision = {}
+        for key, value in kwargs.items():
+            if eqx.is_array(value):
+                kwargs_full_precision[key] = value.astype(jnp.float32)
+            else:
+                kwargs_full_precision[key] = value
+
+        results = func(*args_full_precision, **kwargs_full_precision)
+
+        if type(results) == tuple:
+            results_converted = []
+            for r in results:
+                if eqx.is_array(r):
+                    results_converted.append(r.astype(return_dtype))
+                else:
+                    results_converted.append(r)
+            return tuple(results_converted)
+        elif eqx.is_array(results):
+            return results.astype(return_dtype)
+        return results
+    
+    return wrapper
