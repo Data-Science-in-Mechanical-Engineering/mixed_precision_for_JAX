@@ -45,9 +45,7 @@ class TestLossScaling(unittest.TestCase):
     def test_adjust_finite_grads(self):
         """Test loss scaling adjustment with finite gradients"""
         # Test multiple periods to ensure scaling increases
-        scaling = self.loss_scaling
-        print("oooooooo")
-        print(scaling.loss_scaling[0])
+        scaling = self.loss_scalin
         for _ in range(2000):  # One full period
             scaling = scaling.adjust(jnp.array(True))
         
