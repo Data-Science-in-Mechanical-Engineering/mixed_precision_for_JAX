@@ -93,11 +93,11 @@ class AttentionBlock(eqx.Module):
 
     def __call__(
         self,
-        inputs: Float[Array, "seq_len hidden_size"],
-        mask: Int[Array, " seq_len"] | None,
+        inputs: Array,
+        mask: Array | None,
         enable_dropout: bool = False,
         key: "jax.random.PRNGKey" = None,
-    ) -> Float[Array, "seq_len hidden_size"]:
+    ) -> Array:
         if mask is not None:
             mask = self.make_self_attention_mask(mask)
         attention_key, dropout_key = (
@@ -132,7 +132,7 @@ class AttentionBlock(eqx.Module):
         return result
 
     def make_self_attention_mask(
-        self, mask: Int[Array, " seq_len"]
+        self, mask: Array
     ) -> Float[Array, "num_heads seq_len seq_len"]:
         """Create self-attention mask from sequence-level mask."""
         mask = jnp.multiply(
@@ -176,12 +176,12 @@ class TransformerLayer(eqx.Module):
 
     def __call__(
         self,
-        inputs: Float[Array, "seq_len hidden_size"],
-        mask: Int[Array, " seq_len"] | None = None,
+        inputs: Array,
+        mask: Array | None = None,
         *,
         enable_dropout: bool = False,
         key: jax.random.PRNGKey | None = None,
-    ) -> Float[Array, "seq_len hidden_size"]:
+    ) -> Array:
         attn_key, ff_key = (None, None) if key is None else jax.random.split(key)
         attention_output = self.attention_block(
             inputs, mask, enable_dropout=enable_dropout, key=attn_key
