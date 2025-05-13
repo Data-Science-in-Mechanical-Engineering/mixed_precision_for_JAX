@@ -34,10 +34,10 @@ class FeedForwardBlock(eqx.Module):
 
     def __call__(
         self,
-        inputs: Float[Array, " hidden_size"],
+        inputs: Array,
         enable_dropout: bool = True,
         key: jax.random.PRNGKey | None = None,
-    ) -> Float[Array, " hidden_size"]:
+    ) -> Array:
         # Feed-forward.
         hidden = self.mlp(inputs)
         hidden = jax.nn.gelu(hidden)
