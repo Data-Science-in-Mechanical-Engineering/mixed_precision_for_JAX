@@ -34,7 +34,7 @@ import equinox as eqx
 
 from jaxtyping import Array, Float, Int, PyTree, PRNGKeyArray 
 
-from .dtypes import HALF_PRECISION_DATATYPE
+from .dtypes import half_precision_datatype
 
 def cast_tree(tree: PyTree, dtype):
     """
@@ -125,7 +125,7 @@ def cast_to_half_precision(x: PyTree) -> PyTree:
         PyTree: A new PyTree with all elements cast to the half-precision datatype.
     """
     """Cast to half precision (float16/bfloat16, depending on with what we called set_half_precision_datatype)."""
-    return cast_tree(x, HALF_PRECISION_DATATYPE)
+    return cast_tree(x, half_precision_datatype())
 
 
 def force_full_precision(func, return_dtype=jnp.float16):

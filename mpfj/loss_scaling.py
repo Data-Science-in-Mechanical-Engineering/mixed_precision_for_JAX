@@ -57,9 +57,9 @@ def all_finite(tree: PyTree) -> Array:
         leaves = map(jnp.isfinite, leaves)
         leaves = map(jnp.all, leaves)
         return jnp.stack(list(leaves)).all()
-    
 
-def scaled(func: callable, scaling: DynamicLossScaling):
+
+def scaled(func: callable, scaling: 'DynamicLossScaling'):
     def wrapper(*_args, **_kwargs):
         value = func(*_args, **_kwargs)
         value = scaling.scale(value)
@@ -93,7 +93,7 @@ class DynamicLossScaling(eqx.Module):
         inv_loss_scaling = inv_loss_scaling.astype(jnp.float32)   # cast to float32, so the result is float32 (otherwise the whole scaling point would be senseless)
         return jax.tree_util.tree_map(lambda x: x * inv_loss_scaling[0], tree)
     
-    def adjust(self, grads_finite: jnp.ndarray) -> DynamicLossScaling:
+    def adjust(self, grads_finite: jnp.ndarray) -> 'DynamicLossScaling':
         """Returns the next state dependent on whether grads are finite."""
         assert grads_finite.ndim == 0, "Expected boolean scalar"
 
@@ -113,7 +113,7 @@ class DynamicLossScaling(eqx.Module):
             jnp.maximum(self.min_loss_scaling, self.loss_scaling / self.factor))
         
         # clip to maximum float16 value.
-        loss_scaling = jnp.clip(loss_scaling, a_min=self.min_loss_scaling, a_max=(2 - 2**(-10)) * 2**15)
+        loss_scaling = jnp.clip(loss_scaling, min=self.min_loss_scaling, max=(2 - 2**(-10)) * 2**15)
 
         counter = ((self.counter + 1) % self.period) * grads_finite
 

@@ -9,4 +9,8 @@ def set_half_precision_datatype(datatype):
     Args:
         datatype: The datatype to set as half precision (e.g., jnp.float16).
     """
+    global HALF_PRECISION_DATATYPE
     HALF_PRECISION_DATATYPE = datatype
+
+def half_precision_datatype():
+    return HALF_PRECISION_DATATYPE
