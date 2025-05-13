@@ -133,7 +133,7 @@ class AttentionBlock(eqx.Module):
 
     def make_self_attention_mask(
         self, mask: Array
-    ) -> Float[Array, "num_heads seq_len seq_len"]:
+    ) -> Array:
         """Create self-attention mask from sequence-level mask."""
         mask = jnp.multiply(
             jnp.expand_dims(mask, axis=-1), jnp.expand_dims(mask, axis=-2)
