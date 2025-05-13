@@ -55,9 +55,9 @@ class EmbedderBlock(eqx.Module):
 
     def __call__(
         self,
-        token_ids: Int[Array, " seq_len"],
-        position_ids: Int[Array, " seq_len"],
-        segment_ids: Int[Array, " seq_len"],
+        token_ids: Int[Array, "seq_len"],
+        position_ids: Int[Array, "seq_len"],
+        segment_ids: Int[Array, "seq_len"],
         enable_dropout: bool = False,
         key: jax.random.PRNGKey | None = None,
     ) -> Float[Array, "seq_len hidden_size"]:
@@ -124,9 +124,9 @@ class Encoder(eqx.Module):
 
     def __call__(
         self,
-        token_ids: Int[Array, " seq_len"],
-        position_ids: Int[Array, " seq_len"],
-        segment_ids: Int[Array, " seq_len"],
+        token_ids: Int[Array, "seq_len"],
+        position_ids: Int[Array, "seq_len"],
+        segment_ids: Int[Array, "seq_len"],
         *,
         enable_dropout: bool = False,
         key: jax.random.PRNGKey | None = None,
@@ -190,10 +190,10 @@ class BertClassifier(eqx.Module):
 
     def __call__(
         self,
-        inputs: dict[str, Int[Array, " seq_len"]],
+        inputs: dict[str, Int[Array, "seq_len"]],
         enable_dropout: bool = True,
         key: jax.random.PRNGKey = None,
-    ) -> Float[Array, " num_classes"]:
+    ) -> Float[Array, "num_classes"]:
         seq_len = inputs["token_ids"].shape[-1]
         position_ids = jnp.arange(seq_len)
 
