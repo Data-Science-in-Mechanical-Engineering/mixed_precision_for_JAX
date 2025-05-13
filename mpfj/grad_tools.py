@@ -167,8 +167,6 @@ def optimizer_update(model: PyTree, optimizer: optax.GradientTransformation, opt
     updates, new_optimizer_state = optimizer.update(
         grads, optimizer_state, eqx.filter(model, eqx.is_array)
     )
-    print(updates)
-    print("dddddddd")
     new_model = eqx.apply_updates(model, updates)
 
     # only apply updates to the model and optimizer state if gradients are finite

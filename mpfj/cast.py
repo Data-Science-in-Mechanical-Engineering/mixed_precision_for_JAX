@@ -39,7 +39,7 @@ from .dtypes import half_precision_datatype
 def cast_tree(tree: PyTree, dtype):
     """
     Casts all array elements in a PyTree to a specified data type.
-    This function traverses a PyTree and applies a type casting operation to all array elements, leaving non-array elements unchanged.
+    This function traverses a PyTree and applies a type casting operation to all array elements with dtype float (float16, bfloat16, float32), leaving  all other elements unchanged.
     Args:
         tree (PyTree): The input PyTree containing arrays and other objects.
         dtype (numpy.dtype or str): The target data type to cast the arrays to.
@@ -49,7 +49,10 @@ def cast_tree(tree: PyTree, dtype):
     
     def _cast(x):
         if eqx.is_array(x):
-            return x.astype(dtype)
+            if x.dtype == jnp.float16 or x.dtype == jnp.bfloat16 or x.dtype == jnp.float32:
+                return x.astype(dtype)
+            else:
+                return x
         else:
             return x
     return jax.tree_util.tree_map(_cast, tree)

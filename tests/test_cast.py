@@ -189,5 +189,37 @@ class TestCastFunctions(unittest.TestCase):
         result = cast_to_float32(empty_list)
         self.assertEqual(result, [])
 
+    def test_non_float_arrays(self):
+        # Test that non-float arrays are not cast
+        int32_array = jnp.array([1, 2, 3], dtype=jnp.int32)
+        bool_array = jnp.array([True, False], dtype=jnp.bool_)
+        
+        # Test with single arrays
+        result = cast_to_float32(int32_array)
+        self.assertEqual(result.dtype, jnp.int32)
+        
+        result = cast_to_float32(bool_array)
+        self.assertEqual(result.dtype, jnp.bool_)
+        
+        # Test with nested structure containing mixed dtypes
+        mixed_tree = {
+            'float32': jnp.array([1.0, 2.0], dtype=jnp.float32),
+            'int32': int32_array,
+            'bool': bool_array,
+            'nested': {
+                'float16': jnp.array([1.0, 2.0], dtype=jnp.float16),
+                'int32': int32_array
+            }
+        }
+        
+        result = cast_to_float32(mixed_tree)
+        # Check that float arrays are cast
+        self.assertEqual(result['float32'].dtype, jnp.float32)
+        self.assertEqual(result['nested']['float16'].dtype, jnp.float32)
+        # Check that non-float arrays remain unchanged
+        self.assertEqual(result['int32'].dtype, jnp.int32)
+        self.assertEqual(result['bool'].dtype, jnp.bool_)
+        self.assertEqual(result['nested']['int32'].dtype, jnp.int32)
+
 if __name__ == '__main__':
     unittest.main()
