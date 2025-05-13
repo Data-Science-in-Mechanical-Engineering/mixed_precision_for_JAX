@@ -58,14 +58,14 @@ class TestGradTools(unittest.TestCase):
         x = jnp.array([1.0, 2.0])
         y = jnp.array([2.0])
         
-        # Test with finite gradients
+        # Test with finite gradients and no aux
         grad_fn = filter_grad(loss_fn, self.loss_scaling)
         loss_scaling_new, grads_finite, grad = grad_fn(self.model, x, y)
         
         self.assertTrue(bool(grads_finite))
         self.assertIsInstance(grad, SimpleModel)
         
-        # Test with infinite gradients
+        # Test with infinite gradients and no aux
         def bad_loss_fn(model, x, y):
             pred = model(x)
             return jnp.inf * jnp.mean((pred - y) ** 2)
@@ -73,6 +73,20 @@ class TestGradTools(unittest.TestCase):
         grad_fn = filter_grad(bad_loss_fn, self.loss_scaling)
         loss_scaling_new, grads_finite, grad = grad_fn(self.model, x, y)
         self.assertFalse(bool(grads_finite))
+
+        # Test with finite gradients and aux
+        # Test with aux
+        def loss_fn_with_aux(model, x, y):
+            pred = model(x)
+            loss = jnp.mean((pred - y) ** 2)
+            return loss, {'pred': pred}
+        
+        grad_fn = filter_grad(loss_fn_with_aux, self.loss_scaling, has_aux=True)
+        loss_scaling_new, grads_finite, grad, aux = grad_fn(self.model, x, y)
+        self.assertIsInstance(aux, dict)
+        self.assertIn('pred', aux)
+        self.assertTrue(grads_finite)
+        self.assertIsInstance(grad, SimpleModel)
 
     def test_filter_value_and_grad(self):
         """Test the filter_value_and_grad function"""
@@ -142,6 +156,97 @@ class TestGradTools(unittest.TestCase):
         # Model should remain unchanged
         self.assertTrue(jnp.allclose(new_model.weight, self.model.weight))
         self.assertTrue(jnp.allclose(new_model.bias, self.model.bias))
+    
+    def test_filter_grad_no_mixed_precision(self):
+        """Test the filter_grad function"""
+        def loss_fn(model, x, y):
+            pred = model(x)
+            return jnp.mean((pred - y) ** 2)
+        
+        x = jnp.array([1.0, 2.0])
+        y = jnp.array([2.0])
+        
+        # Test with finite gradients and no aux
+        # we make the scaling inf. If we set use_mixed_precision to False, the scaling should not be applied
+        inf_loss_scaling = DynamicLossScaling(
+            loss_scaling=jnp.array([jnp.inf], dtype=jnp.float32),
+            min_loss_scaling=jnp.array([2**-14], dtype=jnp.float32),
+            factor=2,
+            period=2000
+        )
+        grad_fn = filter_grad(loss_fn, inf_loss_scaling, use_mixed_precision=False)
+        loss_scaling_new, grads_finite, grad = grad_fn(self.model, x, y)
+        
+        self.assertTrue(bool(grads_finite))
+        self.assertIsInstance(grad, SimpleModel)
+        self.assertTrue(jnp.all(jnp.isfinite(grad.weight)))
+        
+        # Test with infinite gradients and no aux
+        def bad_loss_fn(model, x, y):
+            pred = model(x)
+            return jnp.inf * jnp.mean((pred - y) ** 2)
+        
+        grad_fn = filter_grad(bad_loss_fn, inf_loss_scaling, use_mixed_precision=False)
+        loss_scaling_new, grads_finite, grad = grad_fn(self.model, x, y)
+        self.assertTrue(bool(grads_finite))
 
+        # Test with finite gradients and aux
+        # Test with aux
+        def loss_fn_with_aux(model, x, y):
+            pred = model(x)
+            loss = jnp.mean((pred - y) ** 2)
+            return loss, {'pred': pred}
+        
+        grad_fn = filter_grad(loss_fn_with_aux, inf_loss_scaling, has_aux=True, use_mixed_precision=False)
+        loss_scaling_new, grads_finite, grad, aux = grad_fn(self.model, x, y)
+        self.assertIsInstance(aux, dict)
+        self.assertIn('pred', aux)
+        self.assertTrue(grads_finite)
+        self.assertIsInstance(grad, SimpleModel)
+        self.assertTrue(jnp.all(jnp.isfinite(grad.weight)))
+    
+    def test_filter_value_and_grad_no_mixed_precision(self):
+        """Test the filter_value_and_grad function"""
+        def loss_fn(model, x, y):
+            pred = model(x)
+            return jnp.mean((pred - y) ** 2)
+        
+        x = jnp.array([1.0, 2.0])
+        y = jnp.array([2.0])
+        
+        # Test without aux
+        # we make the scaling inf. If we set use_mixed_precision to False, the scaling should not be applied
+        inf_loss_scaling = DynamicLossScaling(
+            loss_scaling=jnp.array([jnp.inf], dtype=jnp.float32),
+            min_loss_scaling=jnp.array([2**-14], dtype=jnp.float32),
+            factor=2,
+            period=2000
+        )
+        value_grad_fn = filter_value_and_grad(loss_fn, inf_loss_scaling, use_mixed_precision=False)
+        value, loss_scaling_new, grads_finite, grad = value_grad_fn(self.model, x, y)
+        
+        self.assertIsInstance(value, jnp.ndarray)
+        self.assertTrue(grads_finite)
+        self.assertIsInstance(grad, SimpleModel)
+        self.assertTrue(jnp.all(jnp.isfinite(grad.weight)))
+        
+        # Test with aux
+        def loss_fn_with_aux(model, x, y):
+            pred = model(x)
+            loss = jnp.mean((pred - y) ** 2)
+            return loss, {'pred': pred}
+        
+        value_grad_fn = filter_value_and_grad(loss_fn_with_aux, inf_loss_scaling, has_aux=True, use_mixed_precision=False)
+        (value, aux), loss_scaling_new, grads_finite, grad = value_grad_fn(self.model, x, y)
+        
+        self.assertIsInstance(value, jnp.ndarray)
+        self.assertIsInstance(aux, dict)
+        self.assertIn('pred', aux)
+        self.assertTrue(grads_finite)
+        self.assertIsInstance(grad, SimpleModel)
+        self.assertTrue(jnp.all(jnp.isfinite(grad.weight)))
+
+    
 if __name__ == '__main__':
+
     unittest.main() 

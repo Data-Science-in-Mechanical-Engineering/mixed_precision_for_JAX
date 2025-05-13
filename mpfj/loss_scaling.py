@@ -59,11 +59,16 @@ def all_finite(tree: PyTree) -> Array:
         return jnp.stack(list(leaves)).all()
 
 
-def scaled(func: callable, scaling: 'DynamicLossScaling'):
+def scaled(func: callable, scaling: 'DynamicLossScaling', has_aux: bool = False) -> callable:
     def wrapper(*_args, **_kwargs):
-        value = func(*_args, **_kwargs)
-        value = scaling.scale(value)
-        return value
+        if has_aux:
+            value, aux = func(*_args, **_kwargs)
+            value = scaling.scale(value)
+            return value, aux
+        else:
+            value = func(*_args, **_kwargs)
+            value = scaling.scale(value)
+            return value
     return wrapper
 
 

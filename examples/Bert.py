@@ -211,6 +211,30 @@ class BertClassifier(eqx.Module):
         )
 
         return self.classifier_head(pooled_output)
+
+def compute_loss(classifier, inputs, key):
+    batch_size = inputs["token_ids"].shape[0]
+    batched_keys = jax.random.split(key, num=batch_size)
+    logits = jax.vmap(classifier, in_axes=(0, None, 0))(inputs, True, batched_keys)
+    return jnp.mean(
+        optax.softmax_cross_entropy_with_integer_labels(
+            logits=logits, labels=inputs["label"]
+        )
+    )
+
+
+def make_step(model, inputs, opt_state, key, tx):
+    key, new_key = jax.random.split(key)
+    loss, grads = compute_loss(model, inputs, key)
+    grads = jax.lax.pmean(grads, axis_name="devices")
+
+    updates, opt_state = tx.update(grads, opt_state, model)
+    model = eqx.apply_updates(model, updates)
+    return loss, model, opt_state, new_key
+
+
+def make_eval_step(model, inputs):
+    return jax.vmap(functools.partial(model, enable_dropout=False))(inputs)
     
 if __name__ == "__main__":
     # Tiny-BERT config.
@@ -242,4 +266,41 @@ if __name__ == "__main__":
     ds = load_dataset("sst2")
     ds = ds.map(tokenize, batched=True)
     ds.set_format(type="jax", columns=["input_ids", "token_type_ids", "label"])
+
+    epochs = 3
+    batch_size = 32
+    learning_rate = 1e-5
+
+    for epoch in range(epochs):
+    with tqdm.tqdm(
+        ds["train"].iter(batch_size=batch_size, drop_last_batch=True),
+        total=ds["train"].num_rows // batch_size,
+        unit="steps",
+        desc=f"Epoch {epoch+1}/{epochs}",
+    ) as tqdm_epoch:
+        for batch in tqdm_epoch:
+            token_ids, token_type_ids = batch["input_ids"], batch["token_type_ids"]
+            label = batch["label"]
+
+            # Split batch across devices.
+            token_ids = einops.rearrange(
+                token_ids, "(b1 b2) s -> b1 b2 s", b1=num_devices
+            )
+            token_type_ids = einops.rearrange(
+                token_type_ids, "(b1 b2) s -> b1 b2 s", b1=num_devices
+            )
+            label = einops.rearrange(label, "(b1 b2) -> b1 b2", b1=num_devices)
+
+            inputs = {
+                "token_ids": token_ids,
+                "segment_ids": token_type_ids,
+                "label": label,
+            }
+            loss, model, opt_state, train_key = p_make_step(
+                model, inputs, opt_state, train_key
+            )
+
+            tqdm_epoch.set_postfix(loss=np.sum(loss).item())
+
+
     
