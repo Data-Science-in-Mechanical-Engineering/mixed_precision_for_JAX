@@ -1,0 +1,9 @@
+jax
+jaxlib
+jaxtyping
+ml_dtypes
+numpy
+opt_einsum
+optax
+scipy
+equinox
