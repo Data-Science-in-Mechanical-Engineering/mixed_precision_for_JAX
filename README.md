@@ -108,7 +108,7 @@ loss_scaling = mpx.DynamicLossScaling(loss_scaling=jnp.ones((1,), dtype=jnp.floa
 ```
 The loss_scaling object then must be passed to the training pipeline.
 
-The most important part is the training step. `mpx` makes transforming your training step into mixed precision very easy. As you can see, the only change you have to do is to replace a call to `eqx.filter_value_and_grad` with `mpx.filter_value_and_grad` and call the optimizer via `mpx.optimizer_update`. Also, do not forget to return `loss_scaling` in your step function as it is updated.
+The most important part is the training step. `mpx` makes transforming your training step into mixed precision very easy. As you can see, the only change you have to do is to replace a call to `eqx.filter_value_and_grad` with `mpx.filter_value_and_grad` and afterwards call the optimizer via `mpx.optimizer_update`. Also, do not forget to return `loss_scaling` in your step function, because `loss_scaling` is updated.
 
 ```python
 @eqx.filter_jit
