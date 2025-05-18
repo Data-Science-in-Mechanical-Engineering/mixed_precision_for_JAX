@@ -4,7 +4,11 @@ import equinox as eqx
 from jaxtyping import Array, Float, Int
 import einshape as es
 
-import mpfj
+import mpx
+
+def init_weights(key, shape: tuple[int, ...]) -> Array:
+    lim = 1 / jnp.sqrt(shape[0])
+    return jax.random.uniform(key, shape, minval=-lim, maxval=lim)
 
 class FeedForwardBlock(eqx.Module):
     """A single transformer feed forward block."""
@@ -36,7 +40,7 @@ class FeedForwardBlock(eqx.Module):
         self,
         inputs: Array,
         enable_dropout: bool = True,
-        key: jax.random.PRNGKey | None = None,
+        key: jax.random.PRNGKey = None,
     ) -> Array:
         # Feed-forward.
         hidden = self.mlp(inputs)
@@ -49,7 +53,7 @@ class FeedForwardBlock(eqx.Module):
         # Residual and layer norm.
         output += inputs
         # layernorm contains mean and std, so we need to force full precision
-        output = mpfj.force_full_precision(self.layernorm, return_dtype=output.dtype)(output)
+        output = mpx.force_full_precision(self.layernorm, return_dtype=output.dtype)(output)
 
         return output
     
@@ -78,16 +82,19 @@ class AttentionBlock(eqx.Module):
         key: jax.random.PRNGKey,
     ):
         self.num_heads = num_heads
-        self.attention = eqx.nn.MultiheadAttention(
-            num_heads=num_heads,
-            query_size=hidden_size,
-            use_query_bias=True,
-            use_key_bias=True,
-            use_value_bias=True,
-            use_output_bias=True,
-            dropout_p=attention_dropout_rate,
-            key=key,
-        )
+        q_key, k_key, v_key, o_key = jax.random.split(key, 4)
+        
+        # Initialize weights using init_weights
+        self.W_q = init_weights(q_key, (hidden_size, hidden_size))
+        self.W_k = init_weights(k_key, (hidden_size, hidden_size))
+        self.W_v = init_weights(v_key, (hidden_size, hidden_size))
+        self.W_o = init_weights(o_key, (hidden_size, hidden_size))
+
+        # Initialize biases with zeros
+        self.b_q = jnp.zeros(hidden_size)
+        self.b_k = jnp.zeros(hidden_size)
+        self.b_v = jnp.zeros(hidden_size)
+        self.b_o = jnp.zeros(hidden_size)
         self.layernorm = eqx.nn.LayerNorm(shape=hidden_size)
         self.dropout = eqx.nn.Dropout(dropout_rate)
 
@@ -117,7 +124,7 @@ class AttentionBlock(eqx.Module):
             qk = qk / jnp.sqrt(Q.shape[-1])
             qk = qk * mask
             # softmax contains exp, mean and division, so we need to force full precision
-            qk = mpfj.force_full_precision(jax.nn.softmax, return_dtype=qk.dtype)(qk)
+            qk = mpx.force_full_precision(jax.nn.softmax, return_dtype=qk.dtype)(qk)
             o = qk @ v
             return o
         
@@ -128,7 +135,7 @@ class AttentionBlock(eqx.Module):
         result = self.dropout(result, inference=not enable_dropout, key=dropout_key)
         result = result + inputs
         # layernorm contains mean and std, so we need to force full precision
-        result = mpfj.force_full_precision(jax.vmap(self.layernorm), return_dtype=result.dtype)(result)
+        result = mpx.force_full_precision(jax.vmap(self.layernorm), return_dtype=result.dtype)(result)
         return result
 
     def make_self_attention_mask(
@@ -180,7 +187,7 @@ class TransformerLayer(eqx.Module):
         mask: Array | None = None,
         *,
         enable_dropout: bool = False,
-        key: jax.random.PRNGKey | None = None,
+        key: jax.random.PRNGKey = None,
     ) -> Array:
         attn_key, ff_key = (None, None) if key is None else jax.random.split(key)
         attention_output = self.attention_block(
