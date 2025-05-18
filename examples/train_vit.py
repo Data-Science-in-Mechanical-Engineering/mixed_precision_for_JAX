@@ -188,8 +188,9 @@ def main(config):
         data = data.as_numpy_iterator()
         return data
 
-    train_dataset = init_tf_dataloader_image(train_data_source, config["batch_size"], config["num_epochs"], 0, 32)
-    val_dataset = init_tf_dataloader_image(val_data_source, config["batch_size"], config["num_epochs"], 0, 32)
+    # we make the resolution way too high for CIFAR100, but this is just for testing and to force the training to use a lot of memory.
+    train_dataset = init_tf_dataloader_image(train_data_source, config["batch_size"], config["num_epochs"], 0, 224)
+    val_dataset = init_tf_dataloader_image(val_data_source, config["batch_size"], config["num_epochs"], 0, 224)
 
     #########################################
     # Sharding
@@ -226,7 +227,7 @@ def main(config):
     # Load optimizer
     ########################################
     # optimizer strategy from https://arxiv.org/abs/2106.10270
-    duration_linear_schedule = 1000
+    duration_linear_schedule = 100
     linear_schedule = optax.linear_schedule(
         init_value=config["learning_rate"] * 0.01,
         end_value=config["learning_rate"],
@@ -322,14 +323,13 @@ def main(config):
 if __name__ == "__main__":
     config = {
         "train_mixed_precision": True,
-        "batch_size": 512,
+        "batch_size": 256,  
         "num_epochs": 10,
-        "num_features": 128,
+        "num_features": 256,
         "num_heads": 4,
-        "num_features_residual": 256,
+        "num_features_residual": 800,
         "num_transformer_blocks": 12,
         "learning_rate": 0.001,
-        "batch_size": 128,
         "weight_regularization": 0.001,
     }
     main(config)

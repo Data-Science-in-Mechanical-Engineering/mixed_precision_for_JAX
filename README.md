@@ -86,7 +86,19 @@ The gradient transformations might return gradients that are infinite. In this c
 The following provides a small example, training a vision transformer on Cifar100 presenting all the important features of `mpx`. For details, please visit examples/train_vit.py.
 This example will not go into the details for the neural network part, but just the `mpx` relevant parts.
 
-When loading the datasets, instantiating the models etc., you must instantiate the loss scaling. Typically, the initial value is set to the maximum value of `float16`.
+### Installation and Execution of the Example
+First install JAX for your hardware.
+Then, install all dependencies via
+```bash
+pip install -r examples/requirements.txt
+```
+Then you can run the example via. ATTENTION: The script downloads Cifar100.
+```bash
+python -m examples.train_vit
+```
+
+### Explanation
+The loss scaling has to be initialized during the instantiation of the datasets, models etc. Typically, the initial value is set to the maximum value of `float16`.
 
 ```python
 
