@@ -48,16 +48,17 @@ def batched_loss_acc_wrapper(model, batch, batch_sharding, replicated_sharding, 
     losses = jax.vmap(model.loss)(pred, target)
     acc = jax.vmap(model.acc)(pred, target)
 
+    # especially for high batch sizes the mean calculation can overflow, hence force it to full precision.
     loss = mpx.force_full_precision(jnp.mean, losses.dtype)(losses)
     acc = mpx.force_full_precision(jnp.mean, losses.dtype)(acc)
 
+    # weight regularization can help in mixed precision training.
+    # It keeps the weights small and prevents overflow during matrix multiplication.
     params, _ = eqx.partition(model, eqx.is_array)
     params = jax.tree_util.tree_leaves(params)
     params = jax.tree_util.tree_map(lambda x: x.flatten(), params)
     params = jnp.concatenate(params).flatten()
 
-    # weight regularization can help in mixed precision training.
-    # It keeps the weights small and prevents overflow during matrix multiplication.
     loss = loss + weight_regularization * mpx.force_full_precision(jnp.mean, jnp.float32)(jnp.abs(params))
 
     return loss, acc
@@ -95,7 +96,9 @@ def make_step(model: eqx.Module,
 
     model = eqx.filter_shard(model, replicated_sharding)
     optimizer_state = eqx.filter_shard(optimizer_state, replicated_sharding)
+    loss_scaling = eqx.filter_shard(loss_scaling, replicated_sharding)
     
+    # return loss_scaling as it is changed
     return model, optimizer_state, loss_scaling, loss_value
 
 

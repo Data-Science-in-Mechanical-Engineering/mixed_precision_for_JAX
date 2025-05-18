@@ -83,7 +83,152 @@ The gradient transformations might return gradients that are infinite. In this c
 - `optimizer_update(model: PyTree, optimizer: optax.GradientTransformation, optimizer_state: PyTree, grads: PyTree, grads_finite: Bool)`: Apply optimizer updates only when gradients are finite. Works with arbitrary `optax` optimizers.
 
 ## Example
-The following provides a small example, presenting all the important features of mpx. For details please examples/Bert.py.
+The following provides a small example, training a vision transformer on Cifar100 presenting all the important features of `mpx`. For details, please visit examples/train_vit.py.
+This example will not go into the details for the neural network part, but just the `mpx` relevant parts.
+
+First, the loss scaling must be instantiated. Typically, the initial value is set to the maximum value of `float16`.
+
+```python
+loss_scaling = mpx.DynamicLossScaling(loss_scaling=jnp.ones((1,), dtype=jnp.float32) * int((2 - 2**(-10)) * 2**15), min_loss_scaling=jnp.ones((1,), dtype=jnp.float32) * 1.0, period=2000)
+```
+
+The most critical part is the training step. `mpx` makes transforming your training step into mixed precision very easy. As you can see, the only change you have to do is to replace a call to `eqx.filter_value_and_grad` with `mpx.filter_value_and_grad` and call the optimizer via `mpx.optimizer_update`. Also, do not forget to return `loss_scaling` in your step function as it is updated.
+
+```python
+@eqx.filter_jit
+def make_step(model: eqx.Module, 
+            optimizer: any, 
+            optimizer_state: PyTree, 
+            batch: dict,
+            batch_sharding: jax.sharding.NamedSharding,
+            replicated_sharding: jax.sharding.NamedSharding,
+            loss_scaling: mpx.DynamicLossScaling,
+            train_mixed_precicion: bool,
+            weight_regularization: Float,
+            key: PRNGKeyArray
+              ) -> tuple[eqx.Module, PyTree, Float, PRNGKeyArray]:
+    batch = eqx.filter_shard(batch, batch_sharding)
+    model = eqx.filter_shard(model, replicated_sharding)
+    optimizer_state = eqx.filter_shard(optimizer_state, replicated_sharding)
+    
+
+    if train_mixed_precicion:
+        # this is the critical part
+        (loss_value, _), loss_scaling, grads_finite, grads = mpx.filter_value_and_grad(batched_loss_acc_wrapper, scaling=loss_scaling, has_aux=True)(
+            model, batch, batch_sharding, replicated_sharding, key, weight_regularization)
+        model, optimizer_state = mpx.optimizer_update(model, optimizer, optimizer_state, grads,grads_finite)
+    else:
+        (loss_value, _), grads = eqx.filter_value_and_grad(batched_loss_acc_wrapper, has_aux=True)(
+            model, batch, batch_sharding, replicated_sharding, key)
+        # optimizer step
+        updates, optimizer_state = optimizer.update(
+            grads, optimizer_state, eqx.filter(model, eqx.is_array)
+        )
+        model = eqx.apply_updates(model, updates)
+
+    model = eqx.filter_shard(model, replicated_sharding)
+    optimizer_state = eqx.filter_shard(optimizer_state, replicated_sharding)
+    loss_scaling = eqx.filter_shard(loss_scaling, replicated_sharding)
+    
+    # return loss_scaling as it is changed
+    return model, optimizer_state, loss_scaling, loss_value
+```
+
+Through the transformation via `mpx.filter_value_and_grad`, we can write our loss function as we normally do when using JAX/Equinox.
+Only critical operations, like mean need to be forced to full precision.
+```python
+@eqx.filter_jit
+def batched_loss_acc_wrapper(model, batch, batch_sharding, replicated_sharding, key, weight_regularization=0.0):
+    batch = eqx.filter_shard(batch, batch_sharding)
+    model = eqx.filter_shard(model, replicated_sharding)
+
+    pred = predict_batch(model, batch, False, key)
+
+    target = batch["target"]    
+    losses = jax.vmap(model.loss)(pred, target)
+    acc = jax.vmap(model.acc)(pred, target)
+
+    # especially for high batch sizes the mean calculation can overflow, hence force it to full precision.
+    loss = mpx.force_full_precision(jnp.mean, losses.dtype)(losses)
+    acc = mpx.force_full_precision(jnp.mean, losses.dtype)(acc)
+
+    # weight regularization can help in mixed precision training.
+    # It keeps the weights small and prevents overflow during matrix multiplication.
+    params, _ = eqx.partition(model, eqx.is_array)
+    params = jax.tree_util.tree_leaves(params)
+    params = jax.tree_util.tree_map(lambda x: x.flatten(), params)
+    params = jnp.concatenate(params).flatten()
+
+    loss = loss + weight_regularization * mpx.force_full_precision(jnp.mean, jnp.float32)(jnp.abs(params))
+
+    return loss, acc
+```
+
+The same holds for the neural network. Here, only critical operations like layernorm and softmax must be forced to full precision.
+This means, as long as your layer does not contain such operations, you can rely on standard `equinox.nn` implementations. For other layers, the only solution so far is to reimplement them and force critical operations to full precision.
+
+```python
+class MultiHeadAttentionBlock(eqx.Module):
+    dense_qs: DenseLayer
+    dense_ks: DenseLayer
+    dense_vs: DenseLayer
+
+    dense_o: DenseLayer
+
+    num_heads: int
+
+    dropout: eqx.nn.Dropout
+    layer_norm: eqx.nn.LayerNorm
+
+    ...
+
+    @staticmethod
+    def attention(q: Array,
+                  k: Array,
+                  v: Array,
+                  dropout: eqx.nn.Dropout,
+                  key: PRNGKeyArray, 
+                  inference: bool) -> Array:
+        attention_scores = q @ k.T
+        attention_scores /= jnp.sqrt(q.shape[-1])
+
+        # softmax is critical
+        attention_scores = mpx.force_full_precision(jax.nn.softmax, attention_scores.dtype)(attention_scores, axis=-1)
+
+        attention_scores = dropout(attention_scores, inference=inference, key=key)
+        return attention_scores @ v
+
+    def __call__(self, inputs: Array, inference: bool, key: PRNGKeyArray) -> Array:
+        # also force layernorm to full precision.
+        inputs_after_layernorm = jax.vmap(mpx.force_full_precision(self.layer_norm, inputs.dtype))(inputs)
+        qs = jax.vmap(self.dense_qs)(inputs_after_layernorm)
+        ks = jax.vmap(self.dense_ks)(inputs_after_layernorm)
+        vs = jax.vmap(self.dense_vs)(inputs_after_layernorm)
+
+        qs = es.jax_einshape("n(hf)->hnf", qs, h=self.num_heads)
+        ks = es.jax_einshape("n(hf)->hnf", ks, h=self.num_heads)
+        vs = es.jax_einshape("n(hf)->hnf", vs, h=self.num_heads)
+
+        keys = jax.random.split(key, self.num_heads)
+
+        outputs = jax.vmap(self.attention, in_axes=(0, 0, 0, None, 0, None))(
+            qs, 
+            ks,
+            vs,
+            self.dropout,
+            keys,
+            inference)
+
+        # reshape outputs (concatenate heads)
+        outputs = es.jax_einshape("hnf->n(hf)", outputs)
+
+        key, key2 = jax.random.split(key)
+        outputs = jax.vmap(self.dense_o)(outputs)
+        outputs = self.dropout(outputs, inference=inference, key=key2)
+        outputs += inputs
+
+        return outputs
+```
 
 
 ## Acknowledgements

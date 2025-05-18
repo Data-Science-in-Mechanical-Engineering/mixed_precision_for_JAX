@@ -128,7 +128,7 @@ class ResidualBlock(eqx.Module):
     
 
 class MultiHeadAttentionBlock(eqx.Module):
-    dense_qs: DenseLayer   # (num_heads * feature_dim, inner_dim), i.e., w_q of head 2 is dense_qs.weight[feature_dim:2*feature_dim, :]
+    dense_qs: DenseLayer 
     dense_ks: DenseLayer
     dense_vs: DenseLayer
 
@@ -175,7 +175,7 @@ class MultiHeadAttentionBlock(eqx.Module):
         return attention_scores @ v
 
     def __call__(self, inputs: Array, inference: bool, key: PRNGKeyArray) -> Array:
-        inputs_after_layernorm = jax.vmap(self.layer_norm)(inputs)
+        inputs_after_layernorm = jax.vmap(mpx.force_full_precision(self.layer_norm, inputs.dtype))(inputs)
         qs = jax.vmap(self.dense_qs)(inputs_after_layernorm)
         ks = jax.vmap(self.dense_ks)(inputs_after_layernorm)
         vs = jax.vmap(self.dense_vs)(inputs_after_layernorm)
