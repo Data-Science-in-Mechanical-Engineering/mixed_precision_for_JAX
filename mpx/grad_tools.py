@@ -33,8 +33,8 @@ import equinox as eqx
 
 import optax
 
-import mpfj.cast as cast
-import mpfj.loss_scaling as loss_scaling
+import mpx.cast as cast
+import mpx.loss_scaling as loss_scaling
 
 from jaxtyping import PyTree, Bool
 
