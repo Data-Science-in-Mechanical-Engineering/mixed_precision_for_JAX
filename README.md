@@ -86,13 +86,17 @@ The gradient transformations might return gradients that are infinite. In this c
 The following provides a small example, training a vision transformer on Cifar100 presenting all the important features of `mpx`. For details, please visit examples/train_vit.py.
 This example will not go into the details for the neural network part, but just the `mpx` relevant parts.
 
-First, the loss scaling must be instantiated. Typically, the initial value is set to the maximum value of `float16`.
+When loading the datasets, instantiating the models etc., you must instantiate the loss scaling. Typically, the initial value is set to the maximum value of `float16`.
 
 ```python
-loss_scaling = mpx.DynamicLossScaling(loss_scaling=jnp.ones((1,), dtype=jnp.float32) * int((2 - 2**(-10)) * 2**15), min_loss_scaling=jnp.ones((1,), dtype=jnp.float32) * 1.0, period=2000)
-```
 
-The most critical part is the training step. `mpx` makes transforming your training step into mixed precision very easy. As you can see, the only change you have to do is to replace a call to `eqx.filter_value_and_grad` with `mpx.filter_value_and_grad` and call the optimizer via `mpx.optimizer_update`. Also, do not forget to return `loss_scaling` in your step function as it is updated.
+loss_scaling = mpx.DynamicLossScaling(loss_scaling=jnp.ones((1,), dtype=jnp.float32) * int((2 - 2**(-10)) * 2**15), 
+                                        in_loss_scaling=jnp.ones((1,), dtype=jnp.float32) * 1.0, 
+                                        period=2000)
+```
+The loss_scaling object then must be passed to the training pipeline.
+
+The most important part is the training step. `mpx` makes transforming your training step into mixed precision very easy. As you can see, the only change you have to do is to replace a call to `eqx.filter_value_and_grad` with `mpx.filter_value_and_grad` and call the optimizer via `mpx.optimizer_update`. Also, do not forget to return `loss_scaling` in your step function as it is updated.
 
 ```python
 @eqx.filter_jit
