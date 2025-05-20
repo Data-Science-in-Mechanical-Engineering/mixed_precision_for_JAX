@@ -1,201 +1,213 @@
+"""
+Implements the basics of transformers.
+All modules are for non-batched inputs. To create calls for batched data use vmap.
+"""
 import jax
 import jax.numpy as jnp
 import equinox as eqx
-from jaxtyping import Array, Float, Int
 import einshape as es
+
+from jaxtyping import Array, Float, Int, PyTree, PRNGKeyArray
 
 import mpx
 
-def init_weights(key, shape: tuple[int, ...]) -> Array:
+
+
+def init_weights(key: PRNGKeyArray, shape: tuple[int, ...]) -> Array:
     lim = 1 / jnp.sqrt(shape[0])
     return jax.random.uniform(key, shape, minval=-lim, maxval=lim)
 
-class FeedForwardBlock(eqx.Module):
-    """A single transformer feed forward block."""
 
-    mlp: eqx.nn.Linear
-    output: eqx.nn.Linear
-    layernorm: eqx.nn.LayerNorm
+class DenseLayer(eqx.Module):
+    weights: Array
+    bias: Array
+
+    def __init__(self, 
+                 input_dim: Int, 
+                 output_dim: Int, 
+                 key: PRNGKeyArray):
+        key, subkey = jax.random.split(key)
+        self.weights = init_weights(subkey, (input_dim, output_dim))
+        self.bias = jnp.zeros((output_dim,))
+
+    def __call__(self, inputs: Array) -> Array:
+        return inputs @ self.weights + self.bias
+
+
+class ResidualBlock(eqx.Module):
+    """A residual block module that applies a series of dense layers, dropout, and layer normalization 
+    with an optional transformed residual connection.
+
+    i.e. y = LayerNorm(MLP(x) + Residual(x)), where Resiudual(x) = x if transform_residual is False and Residual(x) = DenseLayer(x) if transform_residual is True
+    """
+
+    layers: list[DenseLayer]
+    residual_layer: DenseLayer | None
     dropout: eqx.nn.Dropout
 
-    def __init__(
-        self,
-        hidden_size: int,
-        intermediate_size: int,
-        dropout_rate: float,
-        key: jax.random.PRNGKey,
-    ):
-        mlp_key, output_key = jax.random.split(key)
-        self.mlp = eqx.nn.Linear(
-            in_features=hidden_size, out_features=intermediate_size, key=mlp_key
-        )
-        self.output = eqx.nn.Linear(
-            in_features=intermediate_size, out_features=hidden_size, key=output_key
-        )
+    layer_norm: eqx.nn.LayerNorm | None
 
-        self.layernorm = eqx.nn.LayerNorm(shape=hidden_size)
+    activation_fn: callable
+
+    def __init__(self, 
+                input_dim: Int,
+                output_dim: Int,
+                feature_dim: Int,
+                dropout_rate: Float,
+                num_layers: Int,
+                transform_residual: bool,
+                key: PRNGKeyArray,
+                use_residual: bool,
+                use_layernorm: bool,
+                activation: str):
+
+        # init layers
+        layers = []
+        pruning_masks = []
+        key, subkey = jax.random.split(key)
+        layers.append(DenseLayer(input_dim, feature_dim, subkey))
+
+        if num_layers >= 2:
+            for _ in range(num_layers - 2):
+                key, subkey = jax.random.split(key)
+                layers.append(DenseLayer(feature_dim, 
+                                    feature_dim,
+                                    subkey))
+            
+            key, subkey = jax.random.split(key)
+            layers.append(DenseLayer(feature_dim, output_dim, subkey))
+        
+        self.layers = layers
+
+        assert transform_residual or input_dim == output_dim, "input_dim must be equal to output_dim if transform_residual is False"
+        if transform_residual:
+            self.residual_layer = DenseLayer(input_dim, output_dim, key)
+        else:
+            self.residual_layer = None
+
+        # init layernorm and dropout
         self.dropout = eqx.nn.Dropout(dropout_rate)
 
-    def __call__(
-        self,
-        inputs: Array,
-        enable_dropout: bool = True,
-        key: jax.random.PRNGKey = None,
-    ) -> Array:
-        # Feed-forward.
-        hidden = self.mlp(inputs)
-        hidden = jax.nn.gelu(hidden)
+        self.layer_norm = eqx.nn.LayerNorm(input_dim)
 
-        # Project back to input size.
-        output = self.output(hidden)
-        output = self.dropout(output, inference=not enable_dropout, key=key)
+        if activation == "relu":
+            self.activation_fn = jax.nn.relu
+        elif activation == "tanh":
+            self.activation_fn = jax.nn.tanh
+        elif activation == "gelu":
+            self.activation_fn = jax.nn.gelu
 
-        # Residual and layer norm.
-        output += inputs
-        # layernorm contains mean and std, so we need to force full precision
-        output = mpx.force_full_precision(self.layernorm, return_dtype=output.dtype)(output)
+    def __call__(self, inputs: Array, inference: bool, key: PRNGKeyArray) -> Array:
+        # first layer 
+        if self.layer_norm is not None:
+            inputs_after_layernorm = mpx.force_full_precision(self.layer_norm, inputs.dtype)(inputs)
 
-        return output
+            outputs = self.layers[0](inputs_after_layernorm)
+        else:
+            outputs = self.layers[0](inputs)
+        
+        if len(self.layers) >= 2:
+            outputs = self.activation_fn(outputs)
+
+            for i, layer in enumerate(self.layers[1:-1]):
+                key, subkey = jax.random.split(key)
+                outputs = self.activation_fn(layer(outputs))
+
+            outputs = self.layers[-1](outputs)
+
+            outputs = self.dropout(outputs, inference=inference, key=key)
+
+            if self.residual_layer is not None:
+                residual = self.residual_layer(inputs)
+                outputs = outputs + residual
+            else:
+                outputs = outputs + inputs 
+            return outputs
+        else:
+            return outputs
     
 
-class AttentionBlock(eqx.Module):
-    """A single transformer attention block."""
+class MultiHeadAttentionBlock(eqx.Module):
+    dense_qs: DenseLayer 
+    dense_ks: DenseLayer
+    dense_vs: DenseLayer
 
-    W_q: Array
-    b_q: Array
-    W_k: Array
-    b_k: Array
-    W_v: Array
-    b_v: Array
-    W_o: Array
-    b_o: Array
-    layernorm: eqx.nn.LayerNorm
+    dense_o: DenseLayer
+
+    num_heads: int
+
     dropout: eqx.nn.Dropout
-    num_heads: int = eqx.field(static=True)
+    layer_norm: eqx.nn.LayerNorm
 
-    def __init__(
-        self,
-        hidden_size: int,
-        num_heads: int,
-        dropout_rate: float,
-        attention_dropout_rate: float,
-        key: jax.random.PRNGKey,
-    ):
+    def __init__(self, feature_dim: int, 
+                 num_heads: int, 
+                 dropout_rate: float, 
+                 key: PRNGKeyArray):
+        assert feature_dim % num_heads == 0, "feature_dim must be divisible by num_heads"
         self.num_heads = num_heads
-        q_key, k_key, v_key, o_key = jax.random.split(key, 4)
-        
-        # Initialize weights using init_weights
-        self.W_q = init_weights(q_key, (hidden_size, hidden_size))
-        self.W_k = init_weights(k_key, (hidden_size, hidden_size))
-        self.W_v = init_weights(v_key, (hidden_size, hidden_size))
-        self.W_o = init_weights(o_key, (hidden_size, hidden_size))
 
-        # Initialize biases with zeros
-        self.b_q = jnp.zeros(hidden_size)
-        self.b_k = jnp.zeros(hidden_size)
-        self.b_v = jnp.zeros(hidden_size)
-        self.b_o = jnp.zeros(hidden_size)
-        self.layernorm = eqx.nn.LayerNorm(shape=hidden_size)
+        key, subkey = jax.random.split(key)
+        self.dense_qs = DenseLayer(feature_dim, feature_dim, subkey)
+
+        key, subkey = jax.random.split(key)
+        self.dense_ks = DenseLayer(feature_dim, feature_dim, subkey)
+
+        key, subkey = jax.random.split(key)
+        self.dense_vs = DenseLayer(feature_dim, feature_dim, subkey)
+
+        key, subkey = jax.random.split(key)
+        self.dense_o = DenseLayer(feature_dim, feature_dim, subkey)
+
         self.dropout = eqx.nn.Dropout(dropout_rate)
+        self.layer_norm = eqx.nn.LayerNorm(feature_dim)
 
-    def __call__(
-        self,
-        inputs: Array,
-        mask: Array | None,
-        enable_dropout: bool = False,
-        key: "jax.random.PRNGKey" = None,
-    ) -> Array:
-        if mask is not None:
-            mask = self.make_self_attention_mask(mask)
-        attention_key, dropout_key = (
-            (None, None) if key is None else jax.random.split(key)
-        )
+    @staticmethod
+    def attention(q: Array,
+                  k: Array,
+                  v: Array,
+                  dropout: eqx.nn.Dropout,
+                  key: PRNGKeyArray, 
+                  inference: bool) -> Array:
+        attention_scores = q @ k.T
+        attention_scores /= jnp.sqrt(q.shape[-1])
+        attention_scores = mpx.force_full_precision(jax.nn.softmax, attention_scores.dtype)(attention_scores, axis=-1)
+        attention_scores = dropout(attention_scores, inference=inference, key=key)
+        return attention_scores @ v
 
-        Q = inputs @ self.W_q + self.b_q
-        K = inputs @ self.W_k + self.b_k
-        V = inputs @ self.W_v + self.b_v
+    def __call__(self, inputs: Array, inference: bool, key: PRNGKeyArray) -> Array:
+        inputs_after_layernorm = jax.vmap(mpx.force_full_precision(self.layer_norm, inputs.dtype))(inputs)
+        qs = jax.vmap(self.dense_qs)(inputs_after_layernorm)
+        ks = jax.vmap(self.dense_ks)(inputs_after_layernorm)
+        vs = jax.vmap(self.dense_vs)(inputs_after_layernorm)
 
-        Q_head = es.jax_einshape("n(hd)->hnd", Q, h=self.num_heads)
-        K_head = es.jax_einshape("n(hd)->hnd", K, h=self.num_heads)
-        V_head = es.jax_einshape("n(hd)->hnd", V, h=self.num_heads)
+        # reshape such that the first dimension is the head, the second the time and the third the features
+        # The nth num_heads / num_devices heads belong to the nth device
+        # As we combine the heads in the last dimension, for the input, the first num_heads / num_devices * num_features
+        # belong to the first device, and so on. This is important as we apply the same pruning mask as for dense layers.
+        # When reshaping, we need to take these chunkks (i.e., result[:, 0: num_heads / num_devices * num_features]) and put them into
+        # the coresponding heads (i.e. to result[0:num_heads / num_devices, 0: num_features]).
+        # This is exactly what the einshape call does.
+        # result = es.jax_einshape("n(hf)->hnf", result, h=self.num_heads)
+        qs = es.jax_einshape("n(hf)->hnf", qs, h=self.num_heads)
+        ks = es.jax_einshape("n(hf)->hnf", ks, h=self.num_heads)
+        vs = es.jax_einshape("n(hf)->hnf", vs, h=self.num_heads)
 
-        def _single_head_attention(q, k, v):
-            qk = q @ k.T
-            qk = qk / jnp.sqrt(Q.shape[-1])
-            qk = qk * mask
-            # softmax contains exp, mean and division, so we need to force full precision
-            qk = mpx.force_full_precision(jax.nn.softmax, return_dtype=qk.dtype)(qk)
-            o = qk @ v
-            return o
-        
-        O = jax.vmap(_single_head_attention, in_axes=(0, 0, 0))(Q_head, K_head, V_head)
+        keys = jax.random.split(key, self.num_heads)
 
-        result = es.jax_einshape("hnd->n(hd)", O, h=self.num_heads) @ self.W_o + self.b_o
+        outputs = jax.vmap(self.attention, in_axes=(0, 0, 0, None, 0, None))(
+            qs, 
+            ks,
+            vs,
+            self.dropout,
+            keys,
+            inference)
 
-        result = self.dropout(result, inference=not enable_dropout, key=dropout_key)
-        result = result + inputs
-        # layernorm contains mean and std, so we need to force full precision
-        result = mpx.force_full_precision(jax.vmap(self.layernorm), return_dtype=result.dtype)(result)
-        return result
+        # reshape outputs (concatenate heads)
+        outputs = es.jax_einshape("hnf->n(hf)", outputs)
 
-    def make_self_attention_mask(
-        self, mask: Array
-    ) -> Array:
-        """Create self-attention mask from sequence-level mask."""
-        mask = jnp.multiply(
-            jnp.expand_dims(mask, axis=-1), jnp.expand_dims(mask, axis=-2)
-        )
-        mask = jnp.expand_dims(mask, axis=-3)
-        mask = jnp.repeat(mask, repeats=self.num_heads, axis=-3)
-        return mask.astype(jnp.float32)
-    
+        key, key2 = jax.random.split(key)
+        outputs = jax.vmap(self.dense_o)(outputs)
+        outputs = self.dropout(outputs, inference=inference, key=key2)
+        outputs += inputs
 
-class TransformerLayer(eqx.Module):
-    """A single transformer layer."""
-
-    attention_block: AttentionBlock
-    ff_block: FeedForwardBlock
-
-    def __init__(
-        self,
-        hidden_size: int,
-        intermediate_size: int,
-        num_heads: int,
-        dropout_rate: float,
-        attention_dropout_rate: float,
-        key: jax.random.PRNGKey,
-    ):
-        attention_key, ff_key = jax.random.split(key)
-
-        self.attention_block = AttentionBlock(
-            hidden_size=hidden_size,
-            num_heads=num_heads,
-            dropout_rate=dropout_rate,
-            attention_dropout_rate=attention_dropout_rate,
-            key=attention_key,
-        )
-        self.ff_block = FeedForwardBlock(
-            hidden_size=hidden_size,
-            intermediate_size=intermediate_size,
-            dropout_rate=dropout_rate,
-            key=ff_key,
-        )
-
-    def __call__(
-        self,
-        inputs: Array,
-        mask: Array | None = None,
-        *,
-        enable_dropout: bool = False,
-        key: jax.random.PRNGKey = None,
-    ) -> Array:
-        attn_key, ff_key = (None, None) if key is None else jax.random.split(key)
-        attention_output = self.attention_block(
-            inputs, mask, enable_dropout=enable_dropout, key=attn_key
-        )
-        seq_len = inputs.shape[0]
-        ff_keys = None if ff_key is None else jax.random.split(ff_key, num=seq_len)
-        output = jax.vmap(self.ff_block, in_axes=(0, None, 0))(
-            attention_output, enable_dropout, ff_keys
-        )
-        return output
+        return outputs

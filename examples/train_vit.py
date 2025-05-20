@@ -1,10 +1,7 @@
-import collections
-import copy
 import itertools
 import os
 # os.environ['XLA_PYTHON_CLIENT_PREALLOCATE'] = 'false'
-import time
-import numpy as np
+
 import optax
 from tqdm import tqdm
 
@@ -18,17 +15,17 @@ from jaxtyping import Array, Float, Int, PyTree, PRNGKeyArray
 import tensorflow as tf
 import tensorflow_datasets as tfds
 
-from model.timeseries_decoder import TimeseriesPatchedDecoder
-from model.vit import VIT
-import utils.jax_utils as ju
+from examples.vit import VIT
 
 import mpx
 
+tf.config.set_visible_devices([], 'GPU')
+
 
 def filtered_device_put(tree, sharding):
-    params, static = eqx.partition(params, eqx.is_array)
-    params = jax.device_put(tree, sharding)
-    return eqx.combine(params, static)
+    dynamic, static = eqx.partition(tree, eqx.is_array)
+    dynamic = jax.device_put(dynamic, sharding)
+    return eqx.combine(dynamic, static)
 
 
 def predict_batch(model: eqx.Module, 
@@ -41,18 +38,28 @@ def predict_batch(model: eqx.Module,
 
 
 @eqx.filter_jit
-def batched_loss_acc_wrapper(model, batch, batch_sharding, replicated_sharding, key):
+def batched_loss_acc_wrapper(model, batch, batch_sharding, replicated_sharding, key, weight_regularization=0.0):
     batch = eqx.filter_shard(batch, batch_sharding)
     model = eqx.filter_shard(model, replicated_sharding)
 
-    pred = predict_batch(model, batch, None, None, False, key)
+    pred = predict_batch(model, batch, False, key)
 
     target = batch["target"]    
     losses = jax.vmap(model.loss)(pred, target)
     acc = jax.vmap(model.acc)(pred, target)
 
+    # especially for high batch sizes the mean calculation can overflow, hence force it to full precision.
     loss = mpx.force_full_precision(jnp.mean, losses.dtype)(losses)
     acc = mpx.force_full_precision(jnp.mean, losses.dtype)(acc)
+
+    # weight regularization can help in mixed precision training.
+    # It keeps the weights small and prevents overflow during matrix multiplication.
+    params, _ = eqx.partition(model, eqx.is_array)
+    params = jax.tree_util.tree_leaves(params)
+    params = jax.tree_util.tree_map(lambda x: x.flatten(), params)
+    params = jnp.concatenate(params).flatten()
+
+    loss = loss + weight_regularization * mpx.force_full_precision(jnp.mean, jnp.float32)(jnp.abs(params))
 
     return loss, acc
 
@@ -66,6 +73,7 @@ def make_step(model: eqx.Module,
             replicated_sharding: jax.sharding.NamedSharding,
             loss_scaling: mpx.DynamicLossScaling,
             train_mixed_precicion: bool,
+            weight_regularization: Float,
             key: PRNGKeyArray
               ) -> tuple[eqx.Module, PyTree, Float, PRNGKeyArray]:
     batch = eqx.filter_shard(batch, batch_sharding)
@@ -74,8 +82,8 @@ def make_step(model: eqx.Module,
     
 
     if train_mixed_precicion:
-        (loss_value, _), loss_scaling, grads_finite, grads = mpx.filter_value_and_grad(batched_loss_acc_wrapper, loss_scaling=loss_scaling, has_aux=True)(
-            model, batch, batch_sharding, replicated_sharding, key)
+        (loss_value, _), loss_scaling, grads_finite, grads = mpx.filter_value_and_grad(batched_loss_acc_wrapper, scaling=loss_scaling, has_aux=True)(
+            model, batch, batch_sharding, replicated_sharding, key, weight_regularization)
         model, optimizer_state = mpx.optimizer_update(model, optimizer, optimizer_state, grads,grads_finite)
     else:
         (loss_value, _), grads = eqx.filter_value_and_grad(batched_loss_acc_wrapper, has_aux=True)(
@@ -88,7 +96,9 @@ def make_step(model: eqx.Module,
 
     model = eqx.filter_shard(model, replicated_sharding)
     optimizer_state = eqx.filter_shard(optimizer_state, replicated_sharding)
+    loss_scaling = eqx.filter_shard(loss_scaling, replicated_sharding)
     
+    # return loss_scaling as it is changed
     return model, optimizer_state, loss_scaling, loss_value
 
 
@@ -99,9 +109,9 @@ def train_epoch(model: eqx.Module,
                 num_batches: Int,
                 batch_sharding: jax.sharding.NamedSharding,
                 replicated_sharding: jax.sharding.NamedSharding,
-                weight_regularization: float,
                 loss_scaling: mpx.DynamicLossScaling | None,
                 key: PRNGKeyArray,
+                train_mixed_precicion: bool,
                 show_progress: bool) -> tuple[eqx.Module, PyTree, PRNGKeyArray]:
     loss_value = 0
     num_datapoints = 0
@@ -117,10 +127,11 @@ def train_epoch(model: eqx.Module,
                                                     optimizer_state=optimizer_state,
                                                     batch=batch,
                                                     batch_sharding=batch_sharding,
-                                                    weight_regularization=weight_regularization,
                                                     replicated_sharding=replicated_sharding,
                                                     loss_scaling=loss_scaling,
-                                                    key=subkey
+                                                    weight_regularization=config["weight_regularization"],
+                                                    key=subkey,
+                                                    train_mixed_precicion=train_mixed_precicion
                                                     )
         loss_value += loss_batch.astype(jnp.float32) * len(batch["input"])
         num_datapoints += len(batch["input"])
@@ -135,6 +146,7 @@ def eval_epoch(model: eqx.Module,
              replicated_sharding: jax.sharding.NamedSharding,
              loss_scaling: mpx.DynamicLossScaling | None,
              key: PRNGKeyArray,
+             train_mixed_precicion: bool,
              show_progress: bool) -> Float:
     loss_value = 0
     acc = 0
@@ -143,8 +155,9 @@ def eval_epoch(model: eqx.Module,
     for batch in tqdm(itertools.islice(val_dataset, num_batches), disable=not show_progress):
         batch = jax.device_put(batch, batch_sharding)
         key, subkey = jax.random.split(key)
-        model, batch = mpx.cast_to_float16((model, batch))
-        loss_temp, acc_temp = batched_loss_acc_wrapper(model, batch, batch_sharding, replicated_sharding, None, subkey, 0, loss_scaling)
+        if train_mixed_precicion:
+            model, batch = mpx.cast_to_float16((model, batch))
+        loss_temp, acc_temp = batched_loss_acc_wrapper(model, batch, batch_sharding, replicated_sharding, subkey)
         loss_value += loss_temp.astype(jnp.float32) * len(batch["input"])
         acc += acc_temp * len(batch["input"])
         num_datapoints += len(batch["input"])
@@ -175,8 +188,9 @@ def main(config):
         data = data.as_numpy_iterator()
         return data
 
-    train_dataset = init_tf_dataloader_image(train_data_source, config["batch_size"], config["num_epochs"], 0, 32)
-    val_dataset = init_tf_dataloader_image(val_data_source, config["batch_size"], config["num_epochs"], 0, 32)
+    # we make the resolution way too high for CIFAR100, but this is just for testing and to force the training to use a lot of memory.
+    train_dataset = init_tf_dataloader_image(train_data_source, config["batch_size"], config["num_epochs"], 0, 224)
+    val_dataset = init_tf_dataloader_image(val_data_source, config["batch_size"], config["num_epochs"], 0, 224)
 
     #########################################
     # Sharding
@@ -191,11 +205,15 @@ def main(config):
     # Load model
     ########################################
     key, subkey = jax.random.split(key)
-    model = VIT(num_features=config["num_features"],
-        num_heads=config["num_heads"],
-        size_mlp=config["size_mlp"],
-        num_transformer_layers=config["num_transformer_layers"],
-        key=subkey)
+    model = VIT(output_dim=100,
+                num_features=config["num_features"],
+                num_heads=config["num_heads"],
+                num_features_residual=config["num_features_residual"],
+                num_transformer_blocks=config["num_transformer_blocks"],
+                num_features_head=100,
+                dropout_rate=0.1,
+                key=subkey)
+
 
     model = filtered_device_put(model, replicated_sharding)
 
@@ -209,7 +227,7 @@ def main(config):
     # Load optimizer
     ########################################
     # optimizer strategy from https://arxiv.org/abs/2106.10270
-    duration_linear_schedule = 1000
+    duration_linear_schedule = 100
     linear_schedule = optax.linear_schedule(
         init_value=config["learning_rate"] * 0.01,
         end_value=config["learning_rate"],
@@ -246,7 +264,7 @@ def main(config):
     # Train model
     ########################################
     best_val_loss = 1e6
-    for epoch in range(config["epochs"]):
+    for epoch in range(config["num_epochs"]):
         # train
         model, optimizer_state, loss_scaling, train_loss = train_epoch(model=model, 
                                       optimizer=optimizer, 
@@ -257,6 +275,7 @@ def main(config):
                                       replicated_sharding=replicated_sharding,
                                       loss_scaling=loss_scaling,
                                       key=key, 
+                                      train_mixed_precicion=config["train_mixed_precision"],
                                       show_progress=True)
         if loss_scaling is not None:
             loss_scalings.append(loss_scaling.loss_scaling)
@@ -270,10 +289,13 @@ def main(config):
                        replicated_sharding=replicated_sharding,
                        loss_scaling=loss_scaling,
                        key=key, 
+                       train_mixed_precicion=config["train_mixed_precision"],
                        show_progress=True)
         
         val_losses.append(val_loss)
-        val_accs.append(acc)
+        val_accs.append(acc*100)
+
+        print(f"Epoch {epoch}: Train loss: {train_loss}, Val loss: {val_loss}, Val acc: {acc*100}")
 
 
     import matplotlib.pyplot as plt
@@ -301,14 +323,13 @@ def main(config):
 if __name__ == "__main__":
     config = {
         "train_mixed_precision": True,
-        "batch_size": 128,
-        "num_epochs": 300,
-        "num_features": 128,
-        "num_heads": 3,
-        "size_mlp": 256,
-        "num_transformer_layers": 12,
+        "batch_size": 256,  
+        "num_epochs": 10,
+        "num_features": 256,
+        "num_heads": 4,
+        "num_features_residual": 800,
+        "num_transformer_blocks": 12,
         "learning_rate": 0.001,
-        "num_epochs": 300,
-        "batch_size": 128
+        "weight_regularization": 0.001,
     }
     main(config)
