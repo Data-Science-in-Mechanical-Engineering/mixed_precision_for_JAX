@@ -1,0 +1,49 @@
+[build-system]
+build-backend = "hatchling.build"
+requires = ["hatchling"]
+
+
+[project]
+name = "mixed-precision-for-JAX"
+dynamic = ["version"]
+dependencies = [
+  "equinox",
+  "optax",
+  "jax>=0.4.38", 
+  "jaxtyping>=0.2.20", 
+  "typing_extensions>=4.5.0", 
+  "wadler_lindig>=0.1.0"
+]
+requires-python = ">=3.10"
+authors = [
+  {name = "Alexander Graefe", email = "alexander.graefe@dsme.rwth-aachen.de"},
+]
+maintainers = [
+  {name = "Alexander Graefe", email = "alexander.graefe@dsme.rwth-aachen.de"},
+]
+description = "A toolbox for mixed precision training via JAX."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENCSE"]
+keywords = ["JAX", "Neural Network", "Mixed Precision"]
+classifiers = [
+  "Programming Language :: Python",
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Education",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Information Technology",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Scientific/Engineering :: Information Analysis",
+  "Topic :: Scientific/Engineering :: Mathematics"
+]
+
+[tool.hatch.build]
+include = ["mpx/*"]
+
+[tool.hatch.version]
+path = "mpx/__init__.py"
+
+[project.urls]
+Repository = "https://github.com/AlexGraefe/mixed_precision_for_JAX"
+"Bug Tracker" = "https://github.com/AlexGraefe/mixed_precision_for_JAX/issues"

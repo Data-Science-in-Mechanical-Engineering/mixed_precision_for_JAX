@@ -3,7 +3,7 @@
 ## Introduction
 
 This repository offers a tool for training JAX models using mixed precision, called **mpx**. It builds upon [JMP](https://github.com/google-deepmind/jmp)—another mixed precision library for JAX—but extends its capabilities. 
-I discovered that JMP does not support arbitrary PyTrees and is particularly incompatible with models developed using [Equinox](https://docs.kidger.site/equinox/). To overcome these limitations, I created mpx, which leverages Equinox's flexibility to work with any PyTree.
+JMP does not support arbitrary PyTrees and is particularly incompatible with models developed using [Equinox](https://docs.kidger.site/equinox/). mpx overcomes these limitations, by leveraging Equinox's flexibility to work with any PyTree.
 
 ## Basics of Mixed Precision Training
 

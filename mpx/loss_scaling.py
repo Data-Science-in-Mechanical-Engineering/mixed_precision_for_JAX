@@ -73,7 +73,29 @@ def scaled(func: callable, scaling: 'DynamicLossScaling', has_aux: bool = False)
 
 
 class DynamicLossScaling(eqx.Module):
-    """Basic structure taken from jmp."""
+    """
+    Implements dynamic loss scaling for mixed precision training in JAX.
+    The basic structure is taken from jmp.
+    This class automatically adjusts the loss scaling factor during training to prevent
+    numerical underflow/overflow when using reduced precision (e.g., float16). The scaling
+    factor is increased periodically if gradients are finite, and decreased if non-finite
+    gradients are detected, within specified bounds.
+    Attributes:
+        loss_scaling (jnp.ndarray): Current loss scaling factor.
+        min_loss_scaling (jnp.ndarray): Minimum allowed loss scaling factor.
+        counter (jnp.ndarray): Counter for tracking update periods.
+        factor (int): Multiplicative factor for adjusting loss scaling.
+        period (int): Number of steps between potential increases of loss scaling.
+    Methods:
+        scale(tree):
+            Scales all leaves of a pytree by the current loss scaling factor.
+        unscale(tree):
+            Unscales all leaves of a pytree by the inverse of the current loss scaling factor,
+            casting the result to float32.
+        adjust(grads_finite: jnp.ndarray) -> 'DynamicLossScaling':
+            Returns a new DynamicLossScaling instance with updated loss scaling and counter,
+            depending on whether the gradients are finite.
+    """
     loss_scaling: jnp.ndarray
     min_loss_scaling: jnp.ndarray
     counter: jnp.ndarray
