@@ -222,3 +222,5 @@ cython_debug/
 .bak 
 .mtc
 build/
+
+.DS_Store
