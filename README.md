@@ -86,6 +86,8 @@ The gradient transformations might return gradients that are infinite. In this c
 The following provides a small example, training a vision transformer on Cifar100 presenting all the important features of `mpx`. For details, please visit examples/train_vit.py.
 This example will not go into the details for the neural network part, but just the `mpx` relevant parts.
 
+The example was tested on an RTX4070, the training crashes with a batch size of 256 without mixed precision. With mixed precision, the training runs, demonstrating that mixed precision training via `mpx` effectively reduces the memory used on the GPU. The training speed itself does not change dramatically as the RTX4070 does not have a higher throughput for half precision operations.
+
 ### Installation and Execution of the Example
 First install JAX for your hardware.
 Then, install all dependencies via
