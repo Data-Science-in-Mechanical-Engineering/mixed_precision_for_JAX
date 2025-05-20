@@ -1,0 +1,102 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[left=2cm,right=2cm]{geometry}
+
+\usepackage[utf8]{inputenc}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{enumitem}
+
+\title{MPX: Mixed Precision Training for JAX}
+\author{}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+This paper presents \textbf{mpx}, a tool for training JAX models using mixed precision. The library extends the capabilities of JMP (JAX Mixed Precision) \cite{jmp}, addressing its limitations in handling arbitrary PyTrees and compatibility with models developed using Equinox \cite{equinox}. By leveraging Equinox's flexibility, mpx provides a solution that works with any PyTree structure.
+
+\section{Basics of Mixed Precision Training}
+This section summarizes the original Mixed Precision method from NVIDIA's Automatic Mixed Precision \cite{nvidia_amp} and the paper by Micikevicius et al. \cite{mixed_precision_paper}.
+
+Mixed Precision training involves performing most computations in the forward and backward passes of a neural network using 16-bit floating-point numbers. This approach offers two main advantages:
+\begin{itemize}
+    \item Reduced GPU memory usage (approximately 50\% compared to full precision)
+    \item Potential speedup through decreased memory access times and utilization of specialized half-precision tensor cores of TPUs or GPUs.
+\end{itemize}
+
+\subsection{Loss Scaling}
+A critical component of successful Mixed Precision training is loss scaling. Due to float16's decreased resolution, small gradients may be cast to zero, negatively impacting training performance. The solution involves:
+\begin{enumerate}
+    \item Scaling the loss by a factor $> 1$
+    \item Calculating gradients with the scaled loss
+    \item Converting gradients to float32
+    \item Dividing by the scaling factor to obtain original gradients
+\end{enumerate}
+
+The scaling factor can be automatically adjusted using a simple heuristic:
+\begin{itemize}
+    \item If scaled gradients exceed float16 range (inf), reduce scaling and skip model update
+    \item If scaled gradients remain within float16 range for an extended period, increase scaling
+\end{itemize}
+
+\section{Implementation Details}
+mpx is to provides transformations that allow users to transform their existing training pipeline into mixed precision.
+For this, it provides several functions that allow to cast
+
+The mpx library provides essential transformations for mixed precision training while maintaining JAX's low-level approach. Key components include:
+
+\begin{enumerate}
+    \item \textbf{Transformations to Cast PyTrees}: mpx features the following functions to cast arbitrary PyTrees: \texttt{cast\_tree(tree, dtype)} \texttt{cast\_to\_half\_precision(x)}, \texttt{cast\_to\_half\_precision(x)}, \texttt{cast\_to\_float16(x)}, \texttt{cast\_to\_bfloat16(x)}, \texttt{cast\_to\_float32(x)}. All these functions cast all leaves of the input that are JAX arrays and of type float to the corresponding float datatype. All other leaves, including arrays that are of non-float types, like int32, remain unchanged. 
+    \item \textbf{Transformations to Cast Functions}: mpx contains a transformation \texttt{cast\_function(func, dtype, return\_dtype=None)} for functions. This transformation returns a function that casts all its inputs to the desired input datatype (using \texttt{cast\_tree(tree, dtype)}), calls the function and then casts the outputs of the function. Moreover, mpx contains \texttt{force\_full\_precision(func, return\_dtype)}, which forces a function to perform its computations with full precision. This is important as some operations, such as sum, mean or softmax, are sensitive to overflows when calculated in float16.
+    \item \textbf{Transformations to Cast Gradients}: mpx contains the Equinox equivalents \texttt{filter\_grad(func, scaling, has\_aux=False, use\_mixed\_precision=True)} and \texttt{filter\_value\_and\_grad(func, scaling, has\_aux=False, use\_mixed\_precision=True)} that calculate the gradient of a function using mixed precision with loss scaling (as described above). Additional to calculating the gradient, the functions also perform the automatic adaption of the loss scaling value.
+    These drop-in replacements allow users to reuse their existing Equinox training pipelines without major changes to their structure (cf. Section todo).
+\end{enumerate}
+
+
+\subsection{Automatic Loss Scaling Implementation}
+The \texttt{DynamicLossScaling} class manages dynamic loss scaling with methods:
+\begin{itemize}
+    \item \texttt{scale(x)}: Apply current loss scaling factor
+    \item \texttt{unscale(x)}: Remove loss scaling factor
+    \item \texttt{adjust(grads\_finite)}: Update scaling factor based on gradient stability
+\end{itemize}
+
+\subsection{Optimizer}
+mpx works with all optax optimizers. However, as explained above, one might need to skip optimizer updates if gradients became infinite due to loss scaling.
+The  \texttt{optimizer\_update(model, optimizer, optimizer\_state, grads, grads\_finite)} function handles model updates based on gradient finiteness.
+This means, instead of calling \texttt{optimizer.update}, followed by \texttt{eqx.apply\_updates} as done in regular Equinox training pipelines, one just have to call \texttt{mpx.optimizer\_update}.
+
+\section{Example}
+I t
+
+\section{Acknowledgements}
+We express our gratitude to Patrick Kidger for Equinox and Google DeepMind for JMP, which served as the foundation for this implementation.
+
+The authors acknowledge the computing time provided by the NHR Center NHR4CES at RWTH Aachen University (project number p0021919), funded by the Federal Ministry of Education and Research, and participating state governments through the GWK resolutions for national high performance computing at universities.
+
+\begin{thebibliography}{9}
+\bibitem{jmp} 
+JMP: JAX Mixed Precision
+\newblock \url{https://github.com/google-deepmind/jmp}
+
+\bibitem{equinox}
+Equinox: Neural Networks in JAX
+\newblock \url{https://docs.kidger.site/equinox/}
+
+\bibitem{nvidia_amp}
+NVIDIA Automatic Mixed Precision
+\newblock \url{https://developer.nvidia.com/automatic-mixed-precision}
+
+\bibitem{mixed_precision_paper}
+P. Micikevicius et al.
+\newblock ``Mixed Precision Training''
+\newblock arXiv:1710.03740, 2017
+\end{thebibliography}
+
+\end{document}

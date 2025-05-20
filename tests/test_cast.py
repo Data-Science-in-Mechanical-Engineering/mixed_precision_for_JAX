@@ -13,6 +13,7 @@ from mpx.cast import (
     cast_to_full_precision,
     cast_to_half_precision,
     force_full_precision,
+    cast_function,
 )
 from mpx.dtypes import HALF_PRECISION_DATATYPE
 
@@ -220,6 +221,92 @@ class TestCastFunctions(unittest.TestCase):
         self.assertEqual(result['int32'].dtype, jnp.int32)
         self.assertEqual(result['bool'].dtype, jnp.bool_)
         self.assertEqual(result['nested']['int32'].dtype, jnp.int32)
+
+
+class TestCastFunction(unittest.TestCase):
+    def setUp(self):
+        self.array_float32 = jnp.array([1.0, 2.0, 3.0], dtype=jnp.float32)
+        self.array_float16 = jnp.array([1.0, 2.0, 3.0], dtype=jnp.float16)
+        self.array_bfloat16 = jnp.array([1.0, 2.0, 3.0], dtype=jnp.bfloat16)
+
+    def test_basic_function_casting(self):
+        def add(x, y):
+            return x + y
+
+        # Test with float32 inputs
+        casted_add = cast_function(add, jnp.float32)
+        result = casted_add(self.array_float32, self.array_float32)
+        self.assertEqual(result.dtype, jnp.float32)
+
+        # Test with float16 inputs
+        casted_add = cast_function(add, jnp.float16)
+        result = casted_add(self.array_float16, self.array_float16)
+        self.assertEqual(result.dtype, jnp.float16)
+
+    def test_tuple_return_values(self):
+        def operations(x, y):
+            return x + y, x * y
+
+        # Test with float32 inputs
+        casted_ops = cast_function(operations, jnp.float32)
+        result1, result2 = casted_ops(self.array_float32, self.array_float32)
+        self.assertEqual(result1.dtype, jnp.float32)
+        self.assertEqual(result2.dtype, jnp.float32)
+
+        # Test with float16 inputs
+        casted_ops = cast_function(operations, jnp.float16)
+        result1, result2 = casted_ops(self.array_float16, self.array_float16)
+        self.assertEqual(result1.dtype, jnp.float16)
+        self.assertEqual(result2.dtype, jnp.float16)
+
+    def test_different_input_output_dtypes(self):
+        def convert(x):
+            return x
+
+        casted_convert = cast_function(convert, jnp.float32, return_dtype=jnp.float16)
+        result = casted_convert(self.array_float16)
+        self.assertEqual(result.dtype, jnp.float16)
+
+    def test_args_and_kwargs(self):
+        def complex_op(x, y, scale=1.0):
+            return x + y * scale
+
+        # Test with both args and kwargs
+        casted_op = cast_function(complex_op, jnp.float32)
+        result = casted_op(self.array_float32, self.array_float32, scale=2.0)
+        self.assertEqual(result.dtype, jnp.float32)
+
+        # Test with float16 inputs
+        casted_op = cast_function(complex_op, jnp.float16)
+        result = casted_op(self.array_float16, self.array_float16, scale=2.0)
+        self.assertEqual(result.dtype, jnp.float16)
+
+    def test_non_array_inputs_outputs(self):
+        def non_array_op(x, y):
+            return x + y, "string result", 42
+
+        # Test with array and non-array inputs
+        casted_op = cast_function(non_array_op, jnp.float32)
+        result1, result2, result3 = casted_op(self.array_float32, self.array_float32)
+        self.assertEqual(result1.dtype, jnp.float32)
+        self.assertEqual(result2, "string result")
+        self.assertEqual(result3, 42)
+
+    def test_nested_structures(self):
+        def nested_op(x, y):
+            return {"sum": x + y, "product": x * y}
+
+        # Test with float32 inputs
+        casted_op = cast_function(nested_op, jnp.float32)
+        result = casted_op(self.array_float32, self.array_float32)
+        self.assertEqual(result["sum"].dtype, jnp.float32)
+        self.assertEqual(result["product"].dtype, jnp.float32)
+
+        # Test with float16 inputs
+        casted_op = cast_function(nested_op, jnp.float16)
+        result = casted_op(self.array_float16, self.array_float16)
+        self.assertEqual(result["sum"].dtype, jnp.float16)
+        self.assertEqual(result["product"].dtype, jnp.float16)
 
 if __name__ == '__main__':
     unittest.main()

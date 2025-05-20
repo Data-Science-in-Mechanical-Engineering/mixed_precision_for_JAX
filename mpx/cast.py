@@ -131,6 +131,38 @@ def cast_to_half_precision(x: PyTree) -> PyTree:
     return cast_tree(x, half_precision_datatype())
 
 
+def cast_function(func, dtype, return_dtype=None):
+    """
+    Casts the function to the specified data type.
+    """
+
+    if return_dtype is None:
+        return_dtype = dtype
+
+    def wrapper(*args, **kwargs):
+        args_cast = []
+        for arg in args:
+            args_cast.append(cast_tree(arg, dtype))
+        args_cast = tuple(args_cast)
+
+        kwargs_cast = {}
+        for key, value in kwargs.items():
+            kwargs_cast[key] = cast_tree(value, dtype)
+
+        results = func(*args_cast, **kwargs_cast)
+
+        if type(results) == tuple:
+            results_converted = []
+            for r in results:
+                results_converted.append(cast_tree(r, return_dtype))
+            return tuple(results_converted)
+        elif eqx.is_array(results):
+            return cast_tree(results, return_dtype)
+        return results
+    
+    return wrapper
+
+
 def force_full_precision(func, return_dtype=jnp.float16):
     """
     A decorator to enforce full precision (float32) for the inputs and outputs of a function.
@@ -150,34 +182,4 @@ def force_full_precision(func, return_dtype=jnp.float16):
         # will be cast to the specified `return_dtype` if it is an array.
     """
 
-    def wrapper(*args, **kwargs):
-        args_full_precision = []
-        for arg in args:
-            if eqx.is_array(arg):
-                args_full_precision.append(arg.astype(jnp.float32))
-            else:
-                args_full_precision.append(arg)
-        args_full_precision = tuple(args_full_precision)
-
-        kwargs_full_precision = {}
-        for key, value in kwargs.items():
-            if eqx.is_array(value):
-                kwargs_full_precision[key] = value.astype(jnp.float32)
-            else:
-                kwargs_full_precision[key] = value
-
-        results = func(*args_full_precision, **kwargs_full_precision)
-
-        if type(results) == tuple:
-            results_converted = []
-            for r in results:
-                if eqx.is_array(r):
-                    results_converted.append(r.astype(return_dtype))
-                else:
-                    results_converted.append(r)
-            return tuple(results_converted)
-        elif eqx.is_array(results):
-            return results.astype(return_dtype)
-        return results
-    
-    return wrapper
+    return cast_function(func, jnp.float32, return_dtype)
