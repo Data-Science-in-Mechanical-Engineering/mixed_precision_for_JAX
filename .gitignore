@@ -223,4 +223,4 @@ cython_debug/
 .mtc
 build/
 
-.DS_Store
+*/.DS_Store
