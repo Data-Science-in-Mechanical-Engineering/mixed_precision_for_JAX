@@ -113,7 +113,7 @@ class DynamicLossScaling(eqx.Module):
             self.counter = counter
 
     def scale(self, tree):
-        return jax.tree_util.tree_map(lambda x: x * self.loss_scaling[0], tree)
+        return jax.tree_util.tree_map(lambda x: x * self.loss_scaling[0].astype(jnp.float16), tree)
 
     def unscale(self, tree):
         inv_loss_scaling = 1 / self.loss_scaling
