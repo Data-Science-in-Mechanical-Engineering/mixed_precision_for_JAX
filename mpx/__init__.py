@@ -1,8 +1,11 @@
 """
 Mixed Precision for JAX - A library for mixed precision training in JAX
+
+# build: python3 -m build --sdist
+# upload: twine upload --repository pypi dist/* 
 """
 
-__version__ = "0.1.2"
+__version__ = "0.1.3"
 
 from .cast import (
     cast_tree,

@@ -3,7 +3,7 @@ import jax
 import jax.numpy as jnp
 import equinox as eqx
 import optax
-from mpx.grad_tools import select_tree, filter_grad, filter_value_and_grad, optimizer_update
+from mpx.grad_tools import select_tree, filter_grad, filter_value_and_grad, optimizer_update, calculate_scaled_grad
 from mpx.loss_scaling import DynamicLossScaling
 
 
@@ -48,6 +48,47 @@ class TestGradTools(unittest.TestCase):
         result = select_tree(jnp.array(False), tree_a, tree_b)
         self.assertTrue(jnp.allclose(result['a'], tree_b['a']))
         self.assertTrue(jnp.allclose(result['b'], tree_b['b']))
+
+    def test_calculate_scaled_grad(self):
+        """Test the calculate_scaled_grad function"""
+
+        def loss_fn(model, x, y):
+            pred = model(x)
+            return jnp.mean((pred - y) ** 2)
+
+        x = jnp.array([1.0, 2.0])
+        y = jnp.array([2.0])
+
+        # Test without aux
+        scaled_grad_fn = calculate_scaled_grad(loss_fn, self.loss_scaling)
+        value, grad = scaled_grad_fn(self.model, x, y)
+        self.assertIsInstance(value, jnp.ndarray)
+        self.assertIsInstance(grad, SimpleModel)
+        self.assertTrue(grad.weight.dtype == jnp.float16)
+        self.assertTrue(grad.bias.dtype == jnp.float16)
+
+        # Test with aux
+        def loss_fn_with_aux(model, x, y):
+            pred = model(x)
+            loss = jnp.mean((pred - y) ** 2)
+            return loss, {'pred': pred}
+
+        scaled_grad_fn = calculate_scaled_grad(loss_fn_with_aux, self.loss_scaling, has_aux=True)
+        (value, aux), grad = scaled_grad_fn(self.model, x, y)
+        self.assertIsInstance(value, jnp.ndarray)
+        self.assertIsInstance(aux, dict)
+        self.assertIn('pred', aux)
+        self.assertIsInstance(grad, SimpleModel)
+        self.assertTrue(grad.weight.dtype == jnp.float16)
+        self.assertTrue(grad.bias.dtype == jnp.float16)
+
+        # Test with use_mixed_precision=False
+        scaled_grad_fn = calculate_scaled_grad(loss_fn, self.loss_scaling, use_mixed_precision=False)
+        value, grad = scaled_grad_fn(self.model, x, y)
+        self.assertIsInstance(value, jnp.ndarray)
+        self.assertIsInstance(grad, SimpleModel)
+        self.assertTrue(grad.weight.dtype == jnp.float32)
+        self.assertTrue(grad.bias.dtype == jnp.float32)
 
     def test_filter_grad(self):
         """Test the filter_grad function"""

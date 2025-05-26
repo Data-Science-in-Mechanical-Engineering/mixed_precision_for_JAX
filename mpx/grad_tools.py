@@ -127,6 +127,22 @@ def filter_grad(func, scaling: loss_scaling.DynamicLossScaling, has_aux=False, u
     return wrapper
 
 
+def calculate_scaled_grad(func, scaling: loss_scaling.DynamicLossScaling, has_aux=False, use_mixed_precision=True) -> PyTree: 
+    def wrapper(*args, **kwargs):
+        if use_mixed_precision:
+                args_cast = tuple([cast.cast_to_half_precision(x) for x in args])
+                kwargs_cast = {k: cast.cast_to_half_precision(v) for k, v in kwargs.items()}
+                func_scaled = loss_scaling.scaled(func, scaling, has_aux=has_aux)
+        else:
+            args_cast = args
+            kwargs_cast = kwargs
+            func_scaled = func
+
+        dfunc_scaled = eqx.filter_value_and_grad(func_scaled, has_aux=has_aux)
+        return dfunc_scaled(*args_cast, **kwargs_cast)
+    return wrapper
+
+
 def filter_value_and_grad(func, scaling: loss_scaling.DynamicLossScaling, has_aux=False, use_mixed_precision=True) -> PyTree:
     """
     Wraps a function to compute its value and gradient with support for mixed precision
@@ -155,19 +171,10 @@ def filter_value_and_grad(func, scaling: loss_scaling.DynamicLossScaling, has_au
     """
 
     def wrapper(*args, **kwargs):
-        if use_mixed_precision:
-            args_cast = tuple([cast.cast_to_half_precision(x) for x in args])
-            kwargs_cast = {k: cast.cast_to_half_precision(v) for k, v in kwargs.items()}
-            func_scaled = loss_scaling.scaled(func, scaling, has_aux=has_aux)
-        else:
-            args_cast = args
-            kwargs_cast = kwargs
-            func_scaled = func
-
-        dfunc_scaled = eqx.filter_value_and_grad(func_scaled, has_aux=has_aux)
+        dfunc_scaled = calculate_scaled_grad(func, scaling=scaling, has_aux=has_aux, use_mixed_precision=use_mixed_precision)
 
         if has_aux:
-            (value, aux), grad = dfunc_scaled(*args_cast, **kwargs_cast)
+            (value, aux), grad = dfunc_scaled(*args, **kwargs)
             if use_mixed_precision:
                 grads_finite = loss_scaling.all_finite(grad)
                 loss_scaling_new = scaling.adjust(grads_finite)
@@ -178,15 +185,13 @@ def filter_value_and_grad(func, scaling: loss_scaling.DynamicLossScaling, has_au
                 loss_scaling_new = scaling
             return (value, aux), loss_scaling_new, grads_finite, grad
         else:
-            value, grad = dfunc_scaled(*args_cast, **kwargs_cast)
+            value, grad = dfunc_scaled(*args, **kwargs)
             if use_mixed_precision:
-                grad = cast.cast_to_full_precision(grad)
                 grads_finite = loss_scaling.all_finite(grad)
                 loss_scaling_new = scaling.adjust(grads_finite)
                 grad = loss_scaling_new.unscale(grad)
                 value = loss_scaling_new.unscale(value)
             else:
-                grad = cast.cast_to_full_precision(grad)
                 grads_finite = jnp.bool_(True)
                 loss_scaling_new = scaling
             return value, loss_scaling_new, grads_finite, grad
