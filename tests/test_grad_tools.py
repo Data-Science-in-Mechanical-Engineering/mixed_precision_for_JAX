@@ -105,6 +105,8 @@ class TestGradTools(unittest.TestCase):
         
         self.assertTrue(bool(grads_finite))
         self.assertIsInstance(grad, SimpleModel)
+        self.assertTrue(grad.weight.dtype == jnp.float32)
+        self.assertTrue(grad.bias.dtype == jnp.float32)
         
         # Test with infinite gradients and no aux
         def bad_loss_fn(model, x, y):
@@ -114,6 +116,8 @@ class TestGradTools(unittest.TestCase):
         grad_fn = filter_grad(bad_loss_fn, self.loss_scaling)
         loss_scaling_new, grads_finite, grad = grad_fn(self.model, x, y)
         self.assertFalse(bool(grads_finite))
+        self.assertTrue(grad.weight.dtype == jnp.float32)
+        self.assertTrue(grad.bias.dtype == jnp.float32)
 
         # Test with finite gradients and aux
         # Test with aux
@@ -128,6 +132,8 @@ class TestGradTools(unittest.TestCase):
         self.assertIn('pred', aux)
         self.assertTrue(grads_finite)
         self.assertIsInstance(grad, SimpleModel)
+        self.assertTrue(grad.weight.dtype == jnp.float32)
+        self.assertTrue(grad.bias.dtype == jnp.float32)
 
     def test_filter_value_and_grad(self):
         """Test the filter_value_and_grad function"""
@@ -145,6 +151,8 @@ class TestGradTools(unittest.TestCase):
         self.assertIsInstance(value, jnp.ndarray)
         self.assertTrue(grads_finite)
         self.assertIsInstance(grad, SimpleModel)
+        self.assertTrue(grad.weight.dtype == jnp.float32)
+        self.assertTrue(grad.bias.dtype == jnp.float32)
         
         # Test with aux
         def loss_fn_with_aux(model, x, y):
@@ -160,6 +168,8 @@ class TestGradTools(unittest.TestCase):
         self.assertIn('pred', aux)
         self.assertTrue(grads_finite)
         self.assertIsInstance(grad, SimpleModel)
+        self.assertTrue(grad.weight.dtype == jnp.float32)
+        self.assertTrue(grad.bias.dtype == jnp.float32)
 
     def test_optimizer_update(self):
         """Test the optimizer_update function"""
@@ -181,6 +191,8 @@ class TestGradTools(unittest.TestCase):
         
         self.assertIsInstance(new_model, type(self.model))
         self.assertIsInstance(new_optimizer_state, tuple)
+        self.assertTrue(new_model.weight.dtype == jnp.float32)
+        self.assertTrue(new_model.bias.dtype == jnp.float32)
         
         # Test with infinite gradients
         def bad_loss_fn(model, x, y):
@@ -197,6 +209,8 @@ class TestGradTools(unittest.TestCase):
         # Model should remain unchanged
         self.assertTrue(jnp.allclose(new_model.weight, self.model.weight))
         self.assertTrue(jnp.allclose(new_model.bias, self.model.bias))
+        self.assertTrue(new_model.weight.dtype == jnp.float32)
+        self.assertTrue(new_model.bias.dtype == jnp.float32)
     
     def test_filter_grad_no_mixed_precision(self):
         """Test the filter_grad function"""
@@ -221,6 +235,9 @@ class TestGradTools(unittest.TestCase):
         self.assertTrue(bool(grads_finite))
         self.assertIsInstance(grad, SimpleModel)
         self.assertTrue(jnp.all(jnp.isfinite(grad.weight)))
+        self.assertTrue(grad.weight.dtype == jnp.float32)
+        self.assertTrue(grad.bias.dtype == jnp.float32)
+        
         
         # Test with infinite gradients and no aux
         def bad_loss_fn(model, x, y):
@@ -245,6 +262,8 @@ class TestGradTools(unittest.TestCase):
         self.assertTrue(grads_finite)
         self.assertIsInstance(grad, SimpleModel)
         self.assertTrue(jnp.all(jnp.isfinite(grad.weight)))
+        self.assertTrue(grad.weight.dtype == jnp.float32)
+        self.assertTrue(grad.bias.dtype == jnp.float32)
     
     def test_filter_value_and_grad_no_mixed_precision(self):
         """Test the filter_value_and_grad function"""
@@ -270,6 +289,8 @@ class TestGradTools(unittest.TestCase):
         self.assertTrue(grads_finite)
         self.assertIsInstance(grad, SimpleModel)
         self.assertTrue(jnp.all(jnp.isfinite(grad.weight)))
+        self.assertTrue(grad.weight.dtype == jnp.float32)
+        self.assertTrue(grad.bias.dtype == jnp.float32)
         
         # Test with aux
         def loss_fn_with_aux(model, x, y):
@@ -286,6 +307,8 @@ class TestGradTools(unittest.TestCase):
         self.assertTrue(grads_finite)
         self.assertIsInstance(grad, SimpleModel)
         self.assertTrue(jnp.all(jnp.isfinite(grad.weight)))
+        self.assertTrue(grad.weight.dtype == jnp.float32)
+        self.assertTrue(grad.bias.dtype == jnp.float32)
 
     
 if __name__ == '__main__':
