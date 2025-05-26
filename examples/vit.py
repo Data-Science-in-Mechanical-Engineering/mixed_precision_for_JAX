@@ -31,6 +31,7 @@ class VIT(eqx.Module):
 
 
     def __init__(self,
+                 input_patch_length: Int,
                  output_dim: Int,
                  num_features: Int,
                  num_heads: Int,
@@ -42,7 +43,7 @@ class VIT(eqx.Module):
                  ):
         
         key, subkey = jax.random.split(key)
-        self.input_patch_length = 4
+        self.input_patch_length = input_patch_length
         self.num_channels = 3
         input_dim = self.num_channels * self.input_patch_length**2
         self.input_dim = input_dim

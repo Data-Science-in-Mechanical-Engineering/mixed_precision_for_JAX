@@ -1,8 +1,10 @@
 import itertools
 import os
+import time
 # Disable XLA preallocation so one can see the memory consumed via nvidia-smi or nvitop (https://github.com/XuehaiPan/nvitop).
 os.environ['XLA_PYTHON_CLIENT_PREALLOCATE'] = 'false'
 
+import numpy as np
 import optax
 from tqdm import tqdm
 
@@ -116,14 +118,15 @@ def train_epoch(model: eqx.Module,
                 show_progress: bool) -> tuple[eqx.Module, PyTree, PRNGKeyArray]:
     loss_value = 0
     num_datapoints = 0
-    
+    training_time = 0
     for batch in tqdm(itertools.islice(train_dataset, num_batches), disable=not show_progress and False):
         batch = jax.device_put(batch, batch_sharding)
 
         key, subkey = jax.random.split(key)
 
         loss_batch = 0
-        model, optimizer_state, loss_scaling, loss_batch = make_step(model=model, 
+        start_time = time.time()
+        model, optimizer_state, loss_scaling, loss_batch, = make_step(model=model, 
                                                     optimizer=optimizer, 
                                                     optimizer_state=optimizer_state,
                                                     batch=batch,
@@ -134,10 +137,12 @@ def train_epoch(model: eqx.Module,
                                                     key=subkey,
                                                     train_mixed_precicion=train_mixed_precicion
                                                     )
+        
+        training_time += time.time() - start_time
         loss_value += loss_batch.astype(jnp.float32) * len(batch["input"])
         num_datapoints += len(batch["input"])
     
-    return model, optimizer_state, loss_scaling, (loss_value) / (num_datapoints)
+    return model, optimizer_state, loss_scaling, (loss_value) / (num_datapoints), training_time
 
 
 def eval_epoch(model: eqx.Module,
@@ -189,8 +194,8 @@ def main(config):
         data = data.as_numpy_iterator()
         return data
 
-    train_dataset = init_tf_dataloader_image(train_data_source, config["batch_size"], config["num_epochs"], 0, 32)
-    val_dataset = init_tf_dataloader_image(val_data_source, config["batch_size"], config["num_epochs"], 0, 32)
+    train_dataset = init_tf_dataloader_image(train_data_source, config["batch_size"], config["num_epochs"], 0, config["resolution"])
+    val_dataset = init_tf_dataloader_image(val_data_source, config["batch_size"], config["num_epochs"], 0, config["resolution"])
 
     #########################################
     # Sharding
@@ -206,6 +211,7 @@ def main(config):
     ########################################
     key, subkey = jax.random.split(key)
     model = VIT(output_dim=100,
+                input_patch_length=config["input_patch_length"],
                 num_features=config["num_features"],
                 num_heads=config["num_heads"],
                 num_features_residual=config["num_features_residual"],
@@ -264,9 +270,10 @@ def main(config):
     # Train model
     ########################################
     best_val_loss = 1e6
+    training_times = []
     for epoch in range(config["num_epochs"]):
         # train
-        model, optimizer_state, loss_scaling, train_loss = train_epoch(model=model, 
+        model, optimizer_state, loss_scaling, train_loss, training_time = train_epoch(model=model, 
                                       optimizer=optimizer, 
                                       optimizer_state=optimizer_state, 
                                       train_dataset=train_dataset, 
@@ -277,6 +284,10 @@ def main(config):
                                       key=key, 
                                       train_mixed_precicion=config["train_mixed_precision"],
                                       show_progress=True)
+         # to exclude the first epoch from the training time, as it is usually much slower due to compilation
+        if epoch > 0:
+            training_times.append(training_time)
+            print(f"mean training time: {np.mean(training_times)}, max training time: {np.max(training_times)}, min training time: {np.min(training_times)}")
         if loss_scaling is not None:
             loss_scalings.append(loss_scaling.loss_scaling)
         train_losses.append(train_loss)
@@ -323,6 +334,8 @@ def main(config):
 if __name__ == "__main__":
     config = {
         "train_mixed_precision": False,
+        "resolution": 32,
+        "input_patch_length": 4,
         "batch_size": 256,  
         "num_epochs": 10,
         "num_features": 256,
