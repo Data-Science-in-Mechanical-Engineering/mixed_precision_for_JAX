@@ -42,7 +42,7 @@ class VIT(eqx.Module):
                  ):
         
         key, subkey = jax.random.split(key)
-        self.input_patch_length = 16
+        self.input_patch_length = 4
         self.num_channels = 3
         input_dim = self.num_channels * self.input_patch_length**2
         self.input_dim = input_dim

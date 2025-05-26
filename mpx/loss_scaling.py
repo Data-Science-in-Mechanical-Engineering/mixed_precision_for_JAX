@@ -103,29 +103,30 @@ class DynamicLossScaling(eqx.Module):
     period: int
 
     def __init__(self, loss_scaling: jnp.ndarray, min_loss_scaling: jnp.ndarray, factor: int = 2, period: int = 2000, counter=None):
+        assert loss_scaling.ndim == 0, "Expected scalar loss scaling"
+        assert min_loss_scaling.ndim == 0, "Expected scalar minimum loss scaling"
         self.loss_scaling = loss_scaling
         self.min_loss_scaling = min_loss_scaling
         self.factor = factor
         self.period = period
         if counter is None:
-            self.counter = jnp.zeros((1,), dtype=jnp.int32)
+            self.counter = jnp.zeros((), dtype=jnp.int32)
         else:
             self.counter = counter
 
     def scale(self, tree):
-        return jax.tree_util.tree_map(lambda x: x * self.loss_scaling[0].astype(jnp.float16), tree)
+        return jax.tree_util.tree_map(lambda x: x * self.loss_scaling.astype(jnp.float16), tree)
 
     def unscale(self, tree):
         inv_loss_scaling = 1 / self.loss_scaling
         inv_loss_scaling = inv_loss_scaling.astype(jnp.float32)   # cast to float32, so the result is float32 (otherwise the whole scaling point would be senseless)
-        return jax.tree_util.tree_map(lambda x: x * inv_loss_scaling[0], tree)
+        return jax.tree_util.tree_map(lambda x: x * inv_loss_scaling, tree)
     
     def adjust(self, grads_finite: jnp.ndarray) -> 'DynamicLossScaling':
         """Returns the next state dependent on whether grads are finite."""
         assert grads_finite.ndim == 0, "Expected boolean scalar"
 
         first_finite = lambda a, b: jax.lax.select(jnp.isfinite(a).all(), a, b)
-
         loss_scaling = jax.lax.select(
             grads_finite,
 

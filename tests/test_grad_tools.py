@@ -24,8 +24,8 @@ class TestGradTools(unittest.TestCase):
     def setUp(self):
         # Create test data
         self.loss_scaling = DynamicLossScaling(
-            loss_scaling=jnp.array([2**10], dtype=jnp.float32),
-            min_loss_scaling=jnp.array([2**-14], dtype=jnp.float32),
+            loss_scaling=jnp.ones((), dtype=jnp.float32) ** 2**10,
+            min_loss_scaling=jnp.ones((), dtype=jnp.float32) * 2**-14,
             factor=2,
             period=2000
         )
@@ -224,8 +224,8 @@ class TestGradTools(unittest.TestCase):
         # Test with finite gradients and no aux
         # we make the scaling inf. If we set use_mixed_precision to False, the scaling should not be applied
         inf_loss_scaling = DynamicLossScaling(
-            loss_scaling=jnp.array([jnp.inf], dtype=jnp.float32),
-            min_loss_scaling=jnp.array([2**-14], dtype=jnp.float32),
+            loss_scaling=jnp.ones((), dtype=jnp.float32) * jnp.inf,
+            min_loss_scaling=jnp.ones((), dtype=jnp.float32) * 2**-14,
             factor=2,
             period=2000
         )
@@ -277,8 +277,8 @@ class TestGradTools(unittest.TestCase):
         # Test without aux
         # we make the scaling inf. If we set use_mixed_precision to False, the scaling should not be applied
         inf_loss_scaling = DynamicLossScaling(
-            loss_scaling=jnp.array([jnp.inf], dtype=jnp.float32),
-            min_loss_scaling=jnp.array([2**-14], dtype=jnp.float32),
+            loss_scaling=jnp.ones((), dtype=jnp.float32) * jnp.inf,
+            min_loss_scaling=jnp.ones((), dtype=jnp.float32) * 2**-14,
             factor=2,
             period=2000
         )

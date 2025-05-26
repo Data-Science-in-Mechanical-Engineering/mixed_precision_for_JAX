@@ -16,7 +16,7 @@ from .cast import (
     cast_to_half_precision,
     force_full_precision,
 )
-from .dtypes import half_precision_datatype, set_half_precision_datatype
+from .dtypes import half_precision_datatype, set_half_precision_datatype, FLOAT16_MAX, BFLOAT16_MAX
 from .loss_scaling import DynamicLossScaling, all_finite, scaled
 from .grad_tools import select_tree, filter_grad, filter_value_and_grad, optimizer_update
 

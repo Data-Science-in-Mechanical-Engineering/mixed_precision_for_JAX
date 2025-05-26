@@ -1,6 +1,7 @@
 import itertools
 import os
-# os.environ['XLA_PYTHON_CLIENT_PREALLOCATE'] = 'false'
+# Disable XLA preallocation so one can see the memory consumed via nvidia-smi or nvitop (https://github.com/XuehaiPan/nvitop).
+os.environ['XLA_PYTHON_CLIENT_PREALLOCATE'] = 'false'
 
 import optax
 from tqdm import tqdm
@@ -188,9 +189,8 @@ def main(config):
         data = data.as_numpy_iterator()
         return data
 
-    # we make the resolution way too high for CIFAR100, but this is just for testing and to force the training to use a lot of memory.
-    train_dataset = init_tf_dataloader_image(train_data_source, config["batch_size"], config["num_epochs"], 0, 224)
-    val_dataset = init_tf_dataloader_image(val_data_source, config["batch_size"], config["num_epochs"], 0, 224)
+    train_dataset = init_tf_dataloader_image(train_data_source, config["batch_size"], config["num_epochs"], 0, 32)
+    val_dataset = init_tf_dataloader_image(val_data_source, config["batch_size"], config["num_epochs"], 0, 32)
 
     #########################################
     # Sharding
@@ -218,7 +218,7 @@ def main(config):
     model = filtered_device_put(model, replicated_sharding)
 
     if config["train_mixed_precision"]:
-        loss_scaling = mpx.DynamicLossScaling(loss_scaling=jnp.ones((1,), dtype=jnp.float32) * int((2 - 2**(-10)) * 2**15), min_loss_scaling=jnp.ones((1,), dtype=jnp.float32) * 1.0, period=2000)
+        loss_scaling = mpx.DynamicLossScaling(loss_scaling=mpx.FLOAT16_MAX, min_loss_scaling=jnp.ones((), dtype=jnp.float32) * 1.0, period=2000)
         loss_scaling = filtered_device_put(loss_scaling, replicated_sharding)
     else:
         loss_scaling = None
@@ -322,7 +322,7 @@ def main(config):
 
 if __name__ == "__main__":
     config = {
-        "train_mixed_precision": True,
+        "train_mixed_precision": False,
         "batch_size": 256,  
         "num_epochs": 10,
         "num_features": 256,

@@ -7,8 +7,8 @@ from mpx.loss_scaling import DynamicLossScaling, all_finite, scaled
 class TestLossScaling(unittest.TestCase):
     def setUp(self):
         self.loss_scaling = DynamicLossScaling(
-            loss_scaling=jnp.array([2**14], dtype=jnp.float32),
-            min_loss_scaling=jnp.array([2**-14], dtype=jnp.float32),
+            loss_scaling=jnp.ones((), dtype=jnp.float32) * 2**14,
+            min_loss_scaling=jnp.ones((), dtype=jnp.float32) * 2**-14,
             factor=2,
             period=2000
         )
@@ -50,15 +50,15 @@ class TestLossScaling(unittest.TestCase):
             scaling = scaling.adjust(jnp.array(True))
         
         # After one period, scaling should have doubled
-        self.assertAlmostEqual(scaling.loss_scaling[0], 2**15)
-        self.assertEqual(scaling.counter[0], 0)  # Counter should reset
+        self.assertAlmostEqual(scaling.loss_scaling, 2**15)
+        self.assertEqual(scaling.counter, 0)  # Counter should reset
 
         for _ in range(2000):  # One full period
             scaling = scaling.adjust(jnp.array(True))
 
         # After two periods, scaling should not have doubled, but clipped to maximum of float16
-        self.assertAlmostEqual(scaling.loss_scaling[0], (2 - 2**(-10)) * 2**15)
-        self.assertEqual(scaling.counter[0], 0)  # Counter should reset
+        self.assertAlmostEqual(scaling.loss_scaling, (2 - 2**(-10)) * 2**15)
+        self.assertEqual(scaling.counter, 0)  # Counter should reset
 
     def test_adjust_infinite_grads(self):
         """Test loss scaling adjustment with infinite gradients"""
@@ -67,30 +67,30 @@ class TestLossScaling(unittest.TestCase):
         scaling = scaling.adjust(jnp.array(False))
         
         # Scaling should be halved
-        self.assertEqual(scaling.loss_scaling[0], 2**13)
-        self.assertEqual(scaling.counter[0], 0)  # Counter should reset
+        self.assertEqual(scaling.loss_scaling, 2**13)
+        self.assertEqual(scaling.counter, 0)  # Counter should reset
 
     def test_scaling_clipping(self):
         """Test that scaling is properly clipped"""
         # Test maximum clipping
         scaling = DynamicLossScaling(
-            loss_scaling=jnp.array([2**16], dtype=jnp.float32),  # Above max
-            min_loss_scaling=jnp.array([2**-14], dtype=jnp.float32),
+            loss_scaling=jnp.ones((), dtype=jnp.float32) * 2**16,  # Above max
+            min_loss_scaling=jnp.ones((), dtype=jnp.float32) * 2**-14,
             factor=2,
             period=2000
         )
         scaling = scaling.adjust(jnp.array(True))
-        self.assertLessEqual(scaling.loss_scaling[0], (2 - 2**(-10)) * 2**15)
+        self.assertLessEqual(scaling.loss_scaling, (2 - 2**(-10)) * 2**15)
         
         # Test minimum clipping
         scaling = DynamicLossScaling(
-            loss_scaling=jnp.array([2**-15], dtype=jnp.float32),  # Below min
-            min_loss_scaling=jnp.array([2**-14], dtype=jnp.float32),
+            loss_scaling=jnp.ones((), dtype=jnp.float32) * 2**-15,  # Below min
+            min_loss_scaling=jnp.ones((), dtype=jnp.float32) * 2**-14,
             factor=2,
             period=2000
         )
         scaling = scaling.adjust(jnp.array(False))
-        self.assertGreaterEqual(scaling.loss_scaling[0], 2**-14)
+        self.assertGreaterEqual(scaling.loss_scaling, 2**-14)
 
     def test_scaled_decorator(self):
         """Test the scaled decorator"""
