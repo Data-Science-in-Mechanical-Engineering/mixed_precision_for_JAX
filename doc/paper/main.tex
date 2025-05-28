@@ -14,14 +14,22 @@
 \usepackage{enumitem}
 \usepackage{mdframed}
 
+\usepackage{microtype}
+
+\usepackage{tikz}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+
 \usepackage{caption}
 \usepackage{subcaption}
+\captionsetup[subfigure]{justification=centering}
 
 \usepackage{siunitx}
 
 \DeclareCaptionType[fileext=los,placement={!ht}]{example}
 
 \newcommand{\mpx}{\textsc{MPX}}
+\newcommand{\capt}[1]{\mdseries{\emph{#1}}}
 
 \title{\mpx{}: mixed precision Training for JAX}
 \correspondingauthor{}
@@ -43,7 +51,7 @@
 \end{abstract}
 
 \begin{document}
-
+\sloppy
 \maketitle
 
 \section{Introduction}
@@ -94,18 +102,19 @@ The scaling factor can be automatically adjusted using a simple heuristic:
 
 \begin{figure}[t]
     \centering
-    \caption{Transformation of training pipelines via MPX. An existing training pipeline (Top figure) can be transformed, by applying \texttt{@mpx.filter\_grad} to the forward pass. It automatically casts all inputs to half precision and calculates the gradient via dynamic loss scaling.}
-    \label{fig:overview}
     \begin{subfigure}[t]{0.99\textwidth}
         \centering
-        \caption{Full Precision Training via Equinox}
         \includegraphics[width=0.99\textwidth]{assets/EQXOverview.pdf}
+        \caption{Full Precision Training via Equinox}
+        \vspace{0.2cm}
     \end{subfigure}\hspace{0.1cm}
     \begin{subfigure}[t]{0.99\textwidth}
         \centering
-        \caption{Half Precision Training via Equinox and \mpx{}}
         \includegraphics[width=0.99\textwidth]{assets/MPXOverview.pdf}
+        \caption{Half Precision Training via Equinox and \mpx{}}
     \end{subfigure}\hspace{0.1cm}
+    \caption{Transformation of training pipelines via MPX. \capt{An existing training pipeline (Top figure) can be transformed, by applying \texttt{@mpx.filter\_grad} to the forward pass. It automatically casts all inputs to half precision and calculates the gradient via dynamic loss scaling and \texttt{eqx.filter\_grad}.}}
+    \label{fig:overview}
 \end{figure}
 
 
@@ -188,12 +197,8 @@ Here, we provide an example and show which parts in a training pipeline need to 
 
 \begin{example}[h]
     \centering
-    \caption{Implementation of multi-headed self-attention via MPX. For the largest part, the model can be implemented in common toolboxes (here, Equinox~\cite{kidger2021equinox}). Only critical function that should be implemented in full precision, like softmax or layernorm (due to mean and std calculations), have to be transformed via \mpx{}.}
-    \label{ex:update}
     \begin{subfigure}[t]{0.98\textwidth}
         \centering
-        \caption{Full Precision via Equinox}
-        \vspace{-0.4cm}
         \begin{mdframed}[
             backgroundcolor=white!10!black,
             leftmargin=0.5cm,hidealllines=true,%
@@ -207,12 +212,12 @@ updates, optimizer_state = optimizer.update(
 model = eqx.apply_updates(model, updates)
             \end{lstlisting}
         \end{mdframed}
+        \vspace{-0.5cm}
+        \caption{Full Precision via Equinox}
+        \vspace{0.5cm}
     \end{subfigure}\hspace{0.1cm}
     \begin{subfigure}[t]{0.98\textwidth}
         \centering
-        \vspace{0.2cm}
-        \caption{mixed precision via MPX}
-        \vspace{-0.4cm}
         \begin{mdframed}[
             backgroundcolor=white!10!black,
             leftmargin=0.5cm,hidealllines=true,%
@@ -226,8 +231,11 @@ model, optimizer_state = mpx.optimizer_update(
     model, optimizer, optimizer_state, grads,grads_finite)
             \end{lstlisting}
         \end{mdframed}
+        \vspace{-0.5cm}
+        \caption{mixed precision via MPX}
     \end{subfigure}
-
+    \caption{Implementation of model updates via Equinox and \mpx{}. \mpx{} is designed such that its model update routine closely resembles the one of Equinox.}
+    \label{ex:update}
 \end{example}
 
 For the largest part, the implementation of the model must not be changed. 
@@ -243,9 +251,7 @@ Model updates via \mpx{} are very similar to model updates via Equinox (Figure~\
 \begin{example}[h]
     \centering
     \begin{minipage}{0.95\linewidth}
-            \caption{Implementation of model updates via Equinox and \mpx{}. \mpx{} is designed such that its model update routine closely resembles the one of Equinox.}
-            \label{ex:model}
-        \begin{mdframed}[
+    \begin{mdframed}[
     backgroundcolor=white!10!black,
     leftmargin=0.5cm,hidealllines=true,%
   innerleftmargin=0.2cm,innerrightmargin=0.2cm,innertopmargin=0cm,innerbottommargin=-0.10cm
@@ -291,8 +297,220 @@ class MultiHeadAttentionBlock(eqx.Module):
         \end{lstlisting}
         \end{mdframed}
     \end{minipage}
+    \caption{Implementation of multi-headed self-attention via MPX. \capt{For the largest part, the model can be implemented in common toolboxes (here, Equinox~\cite{kidger2021equinox}). Only critical function that should be implemented in full precision, like softmax or layernorm (due to mean and std calculations), have to be transformed via \mpx{}.}}
+    \label{ex:model}
 \end{example}
 
+
+\section{Evaluation}
+We evaluate \mpx{} on two different machines: A mid-level desktop PC (AMD Ryzen 9 5950X, \qty{82}{\giga\byte} RAM, Nvidia GeForce RTX4070 GPU with \qty{12}{\giga\byte} VRAM) and a node on a high-performance cluster (CLAIX-2023, Intel Xeon 8468 Sapphire CPUs, \qty{512}{\giga\byte} RAM, four NVIDIA H100 GPUs with \qty{96}{\giga\byte} VRAM each connected via NVLink).
+On paper, the desktop PC's GPU half precision computation speed is the same for half and full precision, while the H100 GPUs has double the speed for half than for full precision.
+
+We train small vision transformers (ViT)~\cite{dosovitskiy2020image,steiner2021train}.
+On both machines, the transformer has a feature size is 256, the residual blocks have one hidden layer with 800 neurons.
+The desktop PC trains the ViT on Cifar100 and the high-performance cluster on ImageNet1k, equally dividing each batch between the GPUs using a data-parallel approach.
+We train without gradient accumulation, which would be another way to optimize runtime and memory consumption.
+We vary the number of batches and measure the time the machines need to for each training step on the entire dataset, excluding the times used for data loading.
+
+We measure the RAM the program uses by turning off automatic preallocation and setting ``XLA\_PYTHON\_CLIENT\_PREALLOCATE'' to ``platform'', which minimizes the VRAM consumption of JAX\footnote{\url{https://docs.jax.dev/en/latest/gpu_memory_allocation.html}}
+For training speed, we turn both off.
+
+\begin{figure}[h]
+    \centering
+    \begin{subfigure}[t]{0.49\linewidth}
+    \begin{tikzpicture}
+        \begin{axis}[
+            width=0.8\textwidth,
+            height=7cm,
+            xlabel={Batch Size},
+            ylabel={VRAM (\qty{}{\giga\byte})},
+            legend pos=south east,
+            grid=major,
+            grid style={dashed,gray!30},
+            xmin=0,
+            ymin=0
+        ]
+        % First graph: Full Precision
+        \addplot[
+            color=blue,
+            mark=o,
+            thick
+        ] coordinates {
+            (128, 2.290)
+            (256, 4.724)
+            (512, 8.860)
+        };
+        \addlegendentry{Full Precision}
+
+        % Second graph: Mixed Precision
+        \addplot[
+            color=red,
+            mark=square*,
+            thick,
+            dashed
+        ] coordinates {
+            (128, 1.52)
+            (256, 2.418)
+            (512, 4.900)
+            (768, 7.054)
+            (1024, 9.222)
+        };
+        \addlegendentry{Mixed Precision}
+        \end{axis}
+    \end{tikzpicture}
+    \caption{Desktop Computer (RTX4070)}
+    \end{subfigure}
+    \begin{subfigure}[t]{0.49\linewidth}
+    \begin{tikzpicture}
+        \begin{axis}[
+            width=0.8\textwidth,
+            height=7cm,
+            xlabel={Batch Size},
+            ylabel={VRAM (\qty{}{\giga\byte})},
+            legend pos=south east,
+            grid=major,
+            grid style={dashed,gray!30},
+            xmin=0,
+            ymin=0
+        ]
+        % First graph: Full Precision
+        \addplot[
+            color=blue,
+            mark=o,
+            thick
+        ] coordinates {
+            (128, 2.290)
+            (256, 4.724)
+            (512, 8.860)
+        };
+        \addlegendentry{Full Precision}
+
+        % Second graph: Mixed Precision
+        \addplot[
+            color=red,
+            mark=square*,
+            thick,
+            dashed
+        ] coordinates {
+            (128, 1.52)
+            (256, 2.418)
+            (512, 4.900)
+            (768, 7.054)
+            (1024, 9.222)
+        };
+        \addlegendentry{Mixed Precision}
+        \end{axis}
+    \end{tikzpicture}
+    \caption{High-Performance Cluster ($4\times$ H100)}
+    \end{subfigure}
+    \caption{Comparison of GPU VRAM consumed for full precision and mixed precision as a function of the number of batches.}
+    \label{fig:memory}
+\end{figure}
+
+
+\begin{figure}[h]
+    \centering
+    \begin{subfigure}[t]{0.49\linewidth}
+    \begin{tikzpicture}
+        \begin{axis}[
+            width=0.8\textwidth,
+            height=7cm,
+            xlabel={Batch Size},
+            ylabel={Training Time per Epoch (s)},
+            legend pos=south east,
+            grid=major,
+            grid style={dashed,gray!30},
+            xmin=0,
+            ymin=0,
+        ]
+        % First graph: Full Precision
+        \addplot[
+            color=blue,
+            mark=o,
+            thick
+        ] coordinates {
+            (128, 19.7)
+            (256, 18.8)
+            (512, 19.7)
+        };
+        \addlegendentry{Full Precision}
+
+        % Second graph: Mixed Precision
+        \addplot[
+            color=red,
+            mark=square*,
+            thick,
+            dashed
+        ] coordinates {
+            (128, 12.6)
+            (256, 12.0)
+            (512, 11.4)
+            (768, 11.6)
+            (1024, 11.5)
+        };
+        \addlegendentry{Mixed Precision}
+        \end{axis}
+    \end{tikzpicture}
+    \caption{Desktop Computer (RTX4070)}
+    \end{subfigure}
+    \begin{subfigure}[t]{0.49\linewidth}
+    \begin{tikzpicture}
+        \begin{axis}[
+            width=0.8\textwidth,
+            height=7cm,
+            xlabel={Batch Size},
+            ylabel={Training Time per Epoch (s)},
+            legend pos=south east,
+            grid=major,
+            grid style={dashed,gray!30},
+            xmin=0,
+            ymin=0,
+        ]
+        % First graph: Full Precision
+        \addplot[
+            color=blue,
+            mark=o,
+            thick
+        ] coordinates {
+            (128, 19.7)
+            (256, 18.8)
+            (512, 19.7)
+        };
+        \addlegendentry{Full Precision}
+
+        % Second graph: Mixed Precision
+        \addplot[
+            color=red,
+            mark=square*,
+            thick,
+            dashed
+        ] coordinates {
+            (128, 12.6)
+            (256, 12.0)
+            (512, 11.4)
+            (768, 11.6)
+            (1024, 11.5)
+        };
+        \addlegendentry{Mixed Precision}
+        \end{axis}
+    \end{tikzpicture}
+    \caption{High-Performance Cluster ($4\times$ H100)}
+    \end{subfigure}
+    \caption{Comparison of training step times for full precision and mixed precision as a function of the number of batches.}
+    \label{fig:timing}
+\end{figure}
+
+Mixed precision training via \mpx{} reduces both RAM and processing times.
+For the desktop PC, the RAM is reduced by factor $1.8\times$ and processing time by $1.7\times$.
+The speedup is caused by reduced memory loading times as the RTX4070 features no computing speedup for half precision.
+
+\section{Conclusion}
+
+\mpx{} offers an easy-to-use solution for mixed-precision training in JAX.
+It is able to handling arbitrary PyTrees and provides a seamless integration with popular libraries like Equinox and Flax. 
+Through dynamic loss scaling and precision casting, MPX ensures efficient memory usage and accelerates training without compromising model accuracy. 
+The evaluation demonstrates significant reductions in RAM usage and processing times, particularly on hardware that supports half-precision computation. 
+Overall, MPX presents a compelling advancement in optimizing large-scale neural network training pipelines while maintaining flexibility and ease of use.
 
 
 \section{Acknowledgements}

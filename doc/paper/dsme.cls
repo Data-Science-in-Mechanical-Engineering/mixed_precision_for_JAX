@@ -302,7 +302,7 @@ THE ABSTRACT\vskip12pt}\let\go\relax\fi
 
 %%======== Captions in tables and figures ========
 \DeclareCaptionLabelSeparator{pipe}{ $\vert$ }% or $\vert$
-\captionsetup{labelfont={}, %{bf,sf},%
+\captionsetup{labelfont=bf, %{bf,sf},%
 labelsep=space,%
 figurename=Figure,%
 labelsep=pipe,

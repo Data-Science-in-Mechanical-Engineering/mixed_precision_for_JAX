@@ -2,7 +2,8 @@ import itertools
 import os
 import time
 # Disable XLA preallocation so one can see the memory consumed via nvidia-smi or nvitop (https://github.com/XuehaiPan/nvitop).
-os.environ['XLA_PYTHON_CLIENT_PREALLOCATE'] = 'false'
+# os.environ['XLA_PYTHON_CLIENT_PREALLOCATE'] = 'false'
+# os.environ['XLA_PYTHON_CLIENT_ALLOCATOR'] = 'platform'
 
 import numpy as np
 import optax
@@ -67,6 +68,7 @@ def batched_loss_acc_wrapper(model, batch, batch_sharding, replicated_sharding, 
     return loss, acc
 
 
+
 @eqx.filter_jit
 def make_step(model: eqx.Module, 
             optimizer: any, 
@@ -77,25 +79,55 @@ def make_step(model: eqx.Module,
             loss_scaling: mpx.DynamicLossScaling,
             train_mixed_precicion: bool,
             weight_regularization: Float,
-            key: PRNGKeyArray
+            key: PRNGKeyArray,
+            num_grad_accumulation_steps: Int = 1
               ) -> tuple[eqx.Module, PyTree, Float, PRNGKeyArray]:
     batch = eqx.filter_shard(batch, batch_sharding)
     model = eqx.filter_shard(model, replicated_sharding)
     optimizer_state = eqx.filter_shard(optimizer_state, replicated_sharding)
     
-
-    if train_mixed_precicion:
-        (loss_value, _), loss_scaling, grads_finite, grads = mpx.filter_value_and_grad(batched_loss_acc_wrapper, scaling=loss_scaling, has_aux=True)(
-            model, batch, batch_sharding, replicated_sharding, key, weight_regularization)
-        model, optimizer_state = mpx.optimizer_update(model, optimizer, optimizer_state, grads,grads_finite)
+    if num_grad_accumulation_steps == 1:
+        if train_mixed_precicion:
+            (loss_value, _), loss_scaling, grads_finite, grads = mpx.filter_value_and_grad(batched_loss_acc_wrapper, scaling=loss_scaling, has_aux=True)(
+                model, batch, batch_sharding, replicated_sharding, key, weight_regularization)
+            model, optimizer_state = mpx.optimizer_update(model, optimizer, optimizer_state, grads,grads_finite)
+        else:
+            (loss_value, _), grads = eqx.filter_value_and_grad(batched_loss_acc_wrapper, has_aux=True)(
+                model, batch, batch_sharding, replicated_sharding, key)
+            # optimizer step
+            updates, optimizer_state = optimizer.update(
+                grads, optimizer_state, eqx.filter(model, eqx.is_array)
+            )
+            model = eqx.apply_updates(model, updates)
     else:
-        (loss_value, _), grads = eqx.filter_value_and_grad(batched_loss_acc_wrapper, has_aux=True)(
-            model, batch, batch_sharding, replicated_sharding, key)
-        # optimizer step
-        updates, optimizer_state = optimizer.update(
-            grads, optimizer_state, eqx.filter(model, eqx.is_array)
-        )
-        model = eqx.apply_updates(model, updates)
+        size_minibatch = len(batch["input"]) // num_grad_accumulation_steps
+        if len(batch["input"]) % num_grad_accumulation_steps != 0:
+            raise ValueError(f"Batch size {len(batch['input'])} must be divisible by num_grad_accumulation_steps {num_grad_accumulation_steps}.")
+        grads_accumulated = jax.tree_util.tree_map(lambda x: jnp.zeros_like(x) if eqx.is_array(x) else None, model)
+        loss_value = 0
+        if train_mixed_precicion:
+            # accumulate gradients
+            for i in range(num_grad_accumulation_steps):
+                batch_partial = jax.tree_util.tree_map(lambda x: x[i*size_minibatch:(i+1)*size_minibatch], batch)
+                (loss_value, _), loss_scaling, grads_finite, grads = mpx.filter_value_and_grad(batched_loss_acc_wrapper, scaling=loss_scaling, has_aux=True)(
+                    model, batch_partial, batch_sharding, replicated_sharding, key, weight_regularization)
+                grads_accumulated = eqx.apply_updates(grads_accumulated, grads)
+            
+            # optimizer step
+            model, optimizer_state = mpx.optimizer_update(model, optimizer, optimizer_state, grads,grads_finite)
+        else:
+            for i in range(num_grad_accumulation_steps):
+                batch_partial = jax.tree_util.tree_map(lambda x: x[i*size_minibatch:(i+1)*size_minibatch], batch)
+                (loss_value, _), grads = eqx.filter_value_and_grad(batched_loss_acc_wrapper, has_aux=True)(
+                    model, batch_partial, batch_sharding, replicated_sharding, key)
+                grads_accumulated = eqx.apply_updates(grads_accumulated, grads)
+
+            # optimizer step
+            updates, optimizer_state = optimizer.update(
+                grads, optimizer_state, eqx.filter(model, eqx.is_array)
+            )
+            model = eqx.apply_updates(model, updates)
+        
 
     model = eqx.filter_shard(model, replicated_sharding)
     optimizer_state = eqx.filter_shard(optimizer_state, replicated_sharding)
@@ -115,7 +147,9 @@ def train_epoch(model: eqx.Module,
                 loss_scaling: mpx.DynamicLossScaling | None,
                 key: PRNGKeyArray,
                 train_mixed_precicion: bool,
-                show_progress: bool) -> tuple[eqx.Module, PyTree, PRNGKeyArray]:
+                show_progress: bool,
+                num_grad_accumulation_steps: Int = 1
+                ) -> tuple[eqx.Module, PyTree, PRNGKeyArray]:
     loss_value = 0
     num_datapoints = 0
     training_time = 0
@@ -135,7 +169,8 @@ def train_epoch(model: eqx.Module,
                                                     loss_scaling=loss_scaling,
                                                     weight_regularization=config["weight_regularization"],
                                                     key=subkey,
-                                                    train_mixed_precicion=train_mixed_precicion
+                                                    train_mixed_precicion=train_mixed_precicion,
+                                                    num_grad_accumulation_steps=num_grad_accumulation_steps
                                                     )
         
         training_time += time.time() - start_time
@@ -273,6 +308,7 @@ def main(config):
     training_times = []
     for epoch in range(config["num_epochs"]):
         # train
+        num_batches = int(length_train / config["batch_size"] - 1e-5)
         model, optimizer_state, loss_scaling, train_loss, training_time = train_epoch(model=model, 
                                       optimizer=optimizer, 
                                       optimizer_state=optimizer_state, 
@@ -283,7 +319,9 @@ def main(config):
                                       loss_scaling=loss_scaling,
                                       key=key, 
                                       train_mixed_precicion=config["train_mixed_precision"],
-                                      show_progress=True)
+                                      show_progress=True,
+                                      num_grad_accumulation_steps=config["num_grad_accumulation_steps"]
+                                      )
          # to exclude the first epoch from the training time, as it is usually much slower due to compilation
         if epoch > 0:
             training_times.append(training_time)
@@ -333,10 +371,11 @@ def main(config):
 
 if __name__ == "__main__":
     config = {
-        "train_mixed_precision": False,
+        "train_mixed_precision": True,
         "resolution": 32,
         "input_patch_length": 4,
         "batch_size": 256,  
+        "num_grad_accumulation_steps": 1,  # set to > 1 to accumulate gradients over multiple batches
         "num_epochs": 10,
         "num_features": 256,
         "num_heads": 4,
