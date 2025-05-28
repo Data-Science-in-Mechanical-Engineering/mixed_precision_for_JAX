@@ -1,5 +1,11 @@
 # mpx: Mixed Precision Training for JAX
 
+## Installation
+Before installing the library, please make sure that you installed JAX for your given hardware.
+```console
+pip install mixed-precision-for-JAX
+```
+
 ## Introduction
 
 This repository offers a tool for training JAX models using mixed precision, called **mpx**. It builds upon [JMP](https://github.com/google-deepmind/jmp)—another mixed precision library for JAX—but extends its capabilities. 
