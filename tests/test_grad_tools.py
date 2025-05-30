@@ -11,10 +11,12 @@ from mpx.loss_scaling import DynamicLossScaling
 class SimpleModel(eqx.Module):
     weight: jnp.ndarray
     bias: jnp.ndarray
+    none_leaf: None
     
     def __init__(self):
         self.weight = jnp.array([1.0, 2.0], dtype=jnp.float32)
         self.bias = jnp.array([0.5], dtype=jnp.float32)
+        self.none_leaf = None  # Example of a non-array leaf (lead to errors in the past)
     
     def __call__(self, x):
         return jnp.dot(x, self.weight) + self.bias
