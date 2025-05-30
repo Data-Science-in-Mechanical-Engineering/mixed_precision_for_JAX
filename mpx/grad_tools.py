@@ -68,7 +68,7 @@ def select_tree(pred: jnp.ndarray, a: PyTree, b: PyTree) -> PyTree:
         else:
             return x1
 
-    return jax.tree_util.tree_map(lambda x, y: None if x is None else _select_leaf(x, y), a, b, is_leaf=lambda x: x is None)
+    return jax.tree_util.tree_map(_select_leaf, a, b)
 
 
 def filter_grad(func, scaling: loss_scaling.DynamicLossScaling, has_aux=False, use_mixed_precision=True) -> PyTree:
