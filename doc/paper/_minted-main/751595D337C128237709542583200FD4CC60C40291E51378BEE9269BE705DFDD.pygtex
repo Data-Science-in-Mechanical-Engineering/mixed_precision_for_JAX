@@ -1,0 +1,38 @@
+\begin{Verbatim}[commandchars=\\\{\}]
+\PYG{x}{class MultiHeadAttentionBlock(eqx.Module):}
+\PYG{x}{    dense\PYGZus{}qs: eqx.nn.Linear}
+\PYG{x}{    dense\PYGZus{}ks: eqx.nn.Linear}
+\PYG{x}{    dense\PYGZus{}vs: eqx.nn.Linear}
+\PYG{x}{    dense\PYGZus{}o: eqx.nn.Linear}
+\PYG{x}{    num\PYGZus{}heads: int}
+\PYG{x}{    layer\PYGZus{}norm: eqx.nn.LayerNorm}
+
+\PYG{x}{    def \PYGZus{}\PYGZus{}init\PYGZus{}\PYGZus{}(self, feature\PYGZus{}dim, num\PYGZus{}heads, key):}
+\PYG{x}{        self.num\PYGZus{}heads = num\PYGZus{}heads}
+\PYG{x}{        key, subkey = jax.random.split(key)}
+\PYG{x}{        self.dense\PYGZus{}qs = eqx.nn.Linear(}
+\PYG{x}{            feature\PYGZus{}dim, feature\PYGZus{}dim, key=subkey)}
+\PYG{x}{        \PYGZsh{} same for dense\PYGZus{}ks, dense\PYGZus{}vs, dense\PYGZus{}o}
+
+\PYG{x}{        self.layer\PYGZus{}norm = eqx.nn.LayerNorm(feature\PYGZus{}dim)}
+
+\PYG{x}{    def attention(q, k, v):}
+\PYG{x}{        attention\PYGZus{}scores = q @ k.T / jnp.sqrt(q.shape[\PYGZhy{}1])}
+\PYG{x}{        attention\PYGZus{}scores = mpx.force\PYGZus{}full\PYGZus{}precision(}
+\PYG{x}{            jax.nn.softmax, attention\PYGZus{}scores.dtype)(attention\PYGZus{}scores, axis=\PYGZhy{}1)}
+\PYG{x}{        return attention\PYGZus{}scores @ v}
+
+\PYG{x}{    def \PYGZus{}\PYGZus{}call\PYGZus{}\PYGZus{}(self, inputs):}
+\PYG{x}{        inputs\PYGZus{}after\PYGZus{}layernorm = jax.vmap(mpx.force\PYGZus{}full\PYGZus{}precision(}
+\PYG{x}{            self.layer\PYGZus{}norm, inputs.dtype))(inputs)}
+\PYG{x}{        qs = jax.vmap(self.dense\PYGZus{}qs)(inputs\PYGZus{}after\PYGZus{}layernorm)}
+\PYG{x}{        qs = es.jax\PYGZus{}einshape(\PYGZdq{}n(hf)\PYGZhy{}\PYGZgt{}hnf\PYGZdq{}, qs, h=self.num\PYGZus{}heads)}
+\PYG{x}{        \PYGZsh{} same for ks and vs...}
+
+\PYG{x}{        outputs = jax.vmap(self.attention, in\PYGZus{}axes=(0, 0, 0))(qs, ks, vs)}
+\PYG{x}{        outputs = es.jax\PYGZus{}einshape(\PYGZdq{}hnf\PYGZhy{}\PYGZgt{}n(hf)\PYGZdq{}, outputs)}
+\PYG{x}{        outputs = jax.vmap(self.dense\PYGZus{}o)(outputs)}
+\PYG{x}{        outputs += inputs}
+
+\PYG{x}{        return outputs}
+\end{Verbatim}

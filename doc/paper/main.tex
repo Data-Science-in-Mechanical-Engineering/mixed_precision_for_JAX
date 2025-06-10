@@ -1,21 +1,33 @@
-\documentclass[10pt, a4paper, logo, onecolumn, internal, copyright]{dsme}
+\documentclass[copyright, logo]{dsme}
 
 \usepackage[authoryear, sort&compress, round]{natbib}
 \bibliographystyle{abbrvnat}
 
+%% Title
+\title{\mpx{}: Mixed Precision Training for JAX}
 
-\usepackage[utf8]{inputenc}
+\usepackage{authblk}
 
+\author[1]{Alexander Gräfe}
+\author[1]{Sebastian Trimpe}
+
+\renewcommand{\shortauthors}{Gräfe et al.}
+
+\affil[1]{Institute for Data Science in Mechanical Engineering (DSME), RWTH Aachen University}
+
+\codelabel{\faGithub} % defaults to "Code:"
+\codeurl{https://github.com/Data-Science-in-Mechanical-Engineering/mixed_precision_for_JAX}
+\codeurlshort{mixed\_precision\_for\_JAX}
+
+% \date{}
+
+
+% user packages
 \usepackage{amsmath}
-\usepackage{amssymb}
 \usepackage{graphicx}
 \usepackage{listings}
-\usepackage{xcolor}
 \usepackage{enumitem}
 \usepackage{mdframed}
-
-\usepackage{microtype}
-
 
 \usepackage{tikz}
 \usepackage{pgfplots}
@@ -32,28 +44,20 @@
 \newcommand{\mpx}{\textsc{MPX}}
 \newcommand{\capt}[1]{\mdseries{\emph{#1}}}
 
-\title{\mpx{}: mixed precision Training for JAX}
-\correspondingauthor{}
-\reportnumber{} % Leave blank if n/a
-
-\author[1]{Alexander Gräfe}
-\author[1]{Sebastian Trimpe}
-
-\affil[1]{RWTH Aachen University}
-\date{}
-
+\begin{document}
+\sloppy
+\maketitle
 \begin{abstract}
-    MPX is a mixed-precision training toolbox for JAX that simplifies and accelerates the training of large-scale neural networks while preserving model accuracy. 
+Mixed-precision training has emerged as an indispensable tool for enhancing the efficiency of neural network training in recent years. 
+    Concurrently, JAX has grown in popularity as a versatile machine learning toolbox.
+    However, it currently lacks robust support for mixed-precision training.
+    We propose MPX, a mixed-precision training toolbox for JAX that simplifies and accelerates the training of large-scale neural networks while preserving model accuracy. 
     MPX seamlessly integrates with popular toolboxes such as Equinox and Flax, allowing users to convert full-precision pipelines to mixed-precision versions with minimal modifications. 
     By casting both inputs and outputs to half precision, and introducing a dynamic loss-scaling mechanism, MPX alleviates issues like gradient underflow and overflow that commonly arise in half precision computations. 
     Its design inherits critical features from JAX's type-promotion behavior, ensuring that operations take place in the correct precision and allowing for selective enforcement of full precision where needed (e.g., sums, means, or softmax). 
     MPX further provides wrappers for automatic creation and management of mixed-precision gradients and optimizers, enabling straightforward integration into existing JAX training pipelines.
-    \mpx{}'s source code, documentation, and usage examples are available at \url{https://github.com/AlexGraefe/mixed_precision_for_JAX}.
+    \mpx{}'s source code, documentation, and usage examples are available at \url{github.com/Data-Science-in-Mechanical-Engineering/mixed_precision_for_JAX}.
 \end{abstract}
-
-\begin{document}
-\sloppy
-\maketitle
 
 \section{Introduction}
 
@@ -62,15 +66,15 @@ A standout feature of JAX is its just-in-time compilation, which significantly a
 Additionally, JAX supports scalable multi-device and multi-node training across computing clusters through user-friendly and efficient sharding mechanisms.
 
 To extend JAX's capabilities, several libraries have been developed, including Equinox, Flax, and Optax~\citep{kidger2021equinox,flax2020github,deepmind2020jax}. 
-Despite these advancements, one critical area where JAX falls short is in supporting mixed-precision training, a method essential for efficiently handling large models~\cite{mixed_precision_paper}. 
+Despite these advancements, one critical area where JAX falls short is in supporting mixed-precision training, a method essential for efficiently handling large models~\citep{mixed_precision_paper}. 
 Although JMP~\citep{jmp} was previously available for this purpose, it is no longer maintained and cannot process arbitrary JAX PyTrees commonly used in modern neural-network toolboxes.
 
 Mixed-precision training plays a pivotal role in optimizing the performance of large model training by executing both forward and backward passes in half-precision floating-point format (\qty{16}{\bit}). 
-This technique significantly reduces memory requirements for intermediate activations and speeds up training by minimizing memory transfer overheads while utilizing specialized half-precision tensor cores (when supported by hardware), all without compromising accuracy~\cite{mixed_precision_paper}.
+This technique significantly reduces memory requirements for intermediate activations and speeds up training by minimizing memory transfer overheads while utilizing specialized half-precision tensor cores (when supported by hardware), all without compromising accuracy~\citep{mixed_precision_paper}.
 
 To facilitate the straightforward implementation of mixed-precision training in JAX, we introduce \mpx{}, a mixed-precision training toolbox tailored for JAX. 
 \mpx{} builds upon the JMP implementation and leverages Equinox's flexibility to overcome limitations associated with handling arbitrary PyTrees. 
-It further introduces gradient transformations and optimizer wrappers that enable seamless conversion from a full-precision pipeline to mixed precision with minimal modifications. The source code, documentation, and usage examples for \mpx{} are accessible at \url{https://github.com/AlexGraefe/mixed_precision_for_JAX}.
+It further introduces gradient transformations and optimizer wrappers that enable seamless conversion from a full-precision pipeline to mixed precision with minimal modifications. The source code, documentation, and usage examples for \mpx{} are accessible at \url{github.com/Data-Science-in-Mechanical-Engineering/mixed_precision_for_JAX}.
 
 Before explaining the core functionality of \mpx{}, we provide an overview of mixed-precision training principles. 
 Subsequently, we demonstrate how \mpx{} can be integrated into existing workflows through sample code illustrating its main features.
@@ -122,10 +126,10 @@ In the following section, we provide an overview of these features.
 \section{Implementation Details}
 
 The \mpx{} library offers essential transformations for mixed precision training while preserving JAX's low-level flexibility. 
-Similar to JMP~\cite{jmp}, implementationts design leverages JAX's type-promotion behavior\footnote{\url{https://docs.jax.dev/en/latest/jep/9407-type-promotion.html}}, ensuring that operations are executed in the precision to which inputs and outputs have been cast—provided all constants in the function are positioned on the left side of the type-promotion lattice. 
+Similar to JMP~\citep{jmp}, implementationts design leverages JAX's type-promotion behavior\footnote{\url{https://docs.jax.dev/en/latest/jep/9407-type-promotion.html}}, ensuring that operations are executed in the precision to which inputs and outputs have been cast—provided all constants in the function are positioned on the left side of the type-promotion lattice. 
 Consequently, \mpx{} primarily focuses on casting function inputs and outputs to the desired precision.
 
-Specifically, \mpx{} first defines functions for casting PyTrees (Section\ref{sec:castingpytrees}), then utilizes these functions to cast both general functions (Section\ref{sec:castingfunctions}) and gradient calculations (Section\ref{sec:castinggradients}) into mixed precision. 
+Specifically, \mpx{} first defines functions for casting PyTrees (Section~\ref{sec:castingpytrees}), then utilizes these functions to cast both general functions (Section~\ref{sec:castingfunctions}) and gradient calculations (Section~\ref{sec:castinggradients}) into mixed precision. 
 The gradient calculations include dynamic loss scaling (Section~\ref{sec:scaling}) to stabilize mixed precision training.
 Moreover, \mpx{} provides wrappers around optimizers to exclude update steps where gradients are infinite (Section~\ref{sec:optimizer}).
 
@@ -211,7 +215,7 @@ The transformed function then operates as follows (Figure~\ref{fig:overview}):
 \subsection{Optimizer}
 \label{sec:optimizer}
 
-Since \mpx{} produces gradients as PyTrees, they are directly compatible with Optax optimizers~\cite{deepmind2020jax}.
+Since \mpx{} produces gradients as PyTrees, they are directly compatible with Optax optimizers~\citep{deepmind2020jax}.
 However, as previously discussed, it may be necessary to skip optimizer updates if the gradients become infinite due to loss scaling. 
 The function \texttt{optimizer\_update(model, optimizer, optimizer\_state, grads, grads\_finite)} implements this logic by updating the model only when gradients are finite.
 
@@ -223,16 +227,9 @@ In this section, we provide an example to demonstrate the changes required in a 
 
 \subsection{Model Implementation}
 
-\begin{example}[h]
-    \centering
-    \begin{minipage}{0.95\linewidth}
-    \begin{mdframed}[
-    backgroundcolor=white!10!black,
-    leftmargin=0.5cm,hidealllines=true,%
-  innerleftmargin=0.2cm,innerrightmargin=0.2cm,innertopmargin=0cm,innerbottommargin=-0.10cm
-]
-        % \fontsize{8pt}{8pt}\selectfont
-            \begin{lstlisting}[, escapeinside={<@}{@>},language=Python, basicstyle=\ttfamily\linespread{1.1}\footnotesize\color{white!70!black}, frame=l, label={lst:model}, keywordstyle=\color{blue!30!white}, commentstyle=\color{gray}, stringstyle=\color{orange!80!black}, numbers=left, backgroundcolor=\color{white!10!black}, numbers=left, framesep=0.8cm, framerule=0pt,  xleftmargin=0.7cm,]
+\begin{example}[t]
+\begin{pbox}[]{}
+\begin{minted}[linenos, breaklines, mathescape, fontsize=\footnotesize, xleftmargin=2em]{python}
 class MultiHeadAttentionBlock(eqx.Module):
     dense_qs: eqx.nn.Linear
     dense_ks: eqx.nn.Linear
@@ -252,13 +249,13 @@ class MultiHeadAttentionBlock(eqx.Module):
 
     def attention(q, k, v):
         attention_scores = q @ k.T / jnp.sqrt(q.shape[-1])
-        <@\textcolor{white}{attention\_scores = mpx.force\_full\_precision(}@>
-            <@\textcolor{white}{jax.nn.softmax, attention\_scores.dtype)(attention\_scores, axis=-1)}@>
+        attention_scores = mpx.force_full_precision(
+            jax.nn.softmax, attention_scores.dtype)(attention_scores, axis=-1)
         return attention_scores @ v
     
     def __call__(self, inputs):
-        <@\textcolor{white}{inputs\_after\_layernorm = jax.vmap(mpx.force\_full\_precision(}@>
-            <@\textcolor{white}{self.layer\_norm, inputs.dtype))(inputs)}@>
+        inputs_after_layernorm = jax.vmap(mpx.force_full_precision(
+            self.layer_norm, inputs.dtype))(inputs)
         qs = jax.vmap(self.dense_qs)(inputs_after_layernorm)
         qs = es.jax_einshape("n(hf)->hnf", qs, h=self.num_heads)
         # same for ks and vs...
@@ -269,11 +266,10 @@ class MultiHeadAttentionBlock(eqx.Module):
         outputs += inputs
 
         return outputs
-        \end{lstlisting}
-        \end{mdframed}
-    \end{minipage}
-    \caption{Implementation of multi-headed self-attention via MPX. \capt{For the largest part, the model can be implemented in common toolboxes (here, Equinox~\cite{kidger2021equinox}). Only critical function that should be implemented in full precision, like softmax or layernorm (due to mean and std calculations), have to be transformed via \mpx{}.}}
-    \label{ex:model}
+\end{minted}
+\end{pbox}
+\caption{Implementation of multi-headed self-attention via MPX. \capt{For the largest part, the model can be implemented in common toolboxes (here, Equinox~\citep{kidger2021equinox}). Only critical function that should be implemented in full precision, like softmax or layernorm (due to mean and std calculations), have to be transformed via \mpx{}.}}
+\label{ex:model}
 \end{example}
 
 For the largest part, the implementation of the model must not be changed.
@@ -293,40 +289,27 @@ All these steps can be compiled using tools like \texttt{eqx.filter\_jit}.
     \centering
     \begin{subfigure}[t]{0.98\textwidth}
         \centering
-        \begin{mdframed}[
-            backgroundcolor=white!10!black,
-            leftmargin=0.5cm,hidealllines=true,%
-            innerleftmargin=0.2cm,innerrightmargin=0.2cm,innertopmargin=0cm,innerbottommargin=-0.10cm
-        ]
-            % \fontsize{8pt}{8pt}\selectfont
-            \begin{lstlisting}[, escapeinside={<@}{@>},language=Python, basicstyle=\ttfamily\linespread{1.1}\footnotesize\color{white!70!black}, frame=l, label={lst:model}, keywordstyle=\color{blue!30!white}, commentstyle=\color{gray}, stringstyle=\color{orange!80!black}, numbers=left, backgroundcolor=\color{white!10!black}, numbers=left, framesep=0.8cm, framerule=0pt,  xleftmargin=0.7cm,]
+        \begin{pbox}[]{}
+            \begin{minted}[linenos, breaklines, mathescape, fontsize=\footnotesize, xleftmargin=2em]{python}
 grads = eqx.filter_grad(loss)(model, batch)
 updates, optimizer_state = optimizer.update(
     grads, optimizer_state, eqx.filter(model, eqx.is_array))
 model = eqx.apply_updates(model, updates)
-            \end{lstlisting}
-        \end{mdframed}
-        \vspace{-0.5cm}
+        \end{minted}
+    \end{pbox}
         \caption{Full Precision via Equinox}
-        \vspace{0.5cm}
     \end{subfigure}\hspace{0.1cm}
     \begin{subfigure}[t]{0.98\textwidth}
         \centering
-        \begin{mdframed}[
-            backgroundcolor=white!10!black,
-            leftmargin=0.5cm,hidealllines=true,%
-            innerleftmargin=0.2cm,innerrightmargin=0.2cm,innertopmargin=0cm,innerbottommargin=-0.10cm
-        ]
-            % \fontsize{8pt}{8pt}\selectfont
-            \begin{lstlisting}[, escapeinside={<@}{@>},language=Python, basicstyle=\ttfamily\linespread{1.1}\footnotesize\color{white!70!black}, frame=l, label={lst:model}, keywordstyle=\color{blue!30!white}, commentstyle=\color{gray}, stringstyle=\color{orange!80!black}, numbers=left, backgroundcolor=\color{white!10!black}, numbers=left, framesep=0.8cm, framerule=0pt,  xleftmargin=0.7cm,]
+        \begin{pbox}[]{}
+            \begin{minted}[linenos, breaklines, mathescape, fontsize=\footnotesize, xleftmargin=2em]{python}
 loss_scaling, grads_finite, grads = mpx.filter_grad(loss, loss_scaling)(
     model, batch)
 model, optimizer_state = mpx.optimizer_update(
     model, optimizer, optimizer_state, grads,grads_finite)
-            \end{lstlisting}
-        \end{mdframed}
-        \vspace{-0.5cm}
-        \caption{mixed precision via MPX}
+            \end{minted}
+            \end{pbox}
+            \caption{Mixed Precision via \mpx{}}
     \end{subfigure}
     \caption{Implementation of model updates via Equinox and \mpx{}. \mpx{} is designed such that its model update routine closely resembles the one of Equinox.}
     \label{ex:update}
@@ -337,7 +320,7 @@ model, optimizer_state = mpx.optimizer_update(
 We evaluate \mpx{} on two distinct machines: a mid-level desktop PC equipped with an AMD Ryzen 9 5950X, \qty{82}{\giga\byte} RAM, and an Nvidia GeForce RTX4070 GPU featuring \qty{12}{\giga\byte} VRAM; and a node from a high-performance cluster (CLAIX-2023) comprising Intel Xeon 8468 Sapphire CPUs, \qty{512}{\giga\byte} RAM, and four NVIDIA H100 GPUs connected via NVLink each with \qty{96}{\giga\byte} VRAM. 
 On paper, the desktop PC's GPU maintains equivalent computation speeds for both half and full precision, whereas the H100 GPUs deliver double the speed for half precision compared to full precision.
 
-We train vision transformers (ViT)~\cite{dosovitskiy2020image,steiner2021train}. On the desktop PC, the transformer features a size of 256 with residual blocks containing one hidden layer of 800 neurons. T
+We train vision transformers (ViT)~\citep{dosovitskiy2020image,steiner2021train}. On the desktop PC, the transformer features a size of 256 with residual blocks containing one hidden layer of 800 neurons. T
 The cluster's transformer mirrors ViT-Base dimensions, with a feature size of 768 and residual blocks having one hidden layer of 3072 neurons.
 
 The desktop PC trains the ViT on CIFAR100 while the high-performance cluster handles ImageNet1k, dividing each batch equally across GPUs using a data-parallel approach. We train without gradient accumulation, which could further optimize runtime and memory consumption
@@ -345,14 +328,15 @@ The desktop PC trains the ViT on CIFAR100 while the high-performance cluster han
 We vary the number of batches and measure the time required for each training step across the entire dataset, excluding data loading times. 
 RAM usage is measured by disabling automatic preallocation and setting "XLA\_PYTHON\_CLIENT\_PREALLOCATE" to "platform," minimizing JAX's VRAM consumption\footnote{\url{https://docs.jax.dev/en/latest/gpu_memory_allocation.html}}. 
 For training speed assessment, both settings are turned off.
+Due to technical reasons, we only measure VRAM consumption on the desktop PC as an accurate VRAM measurement was not possible on the high-performance cluster. 
 
 \begin{figure}[h]
     \centering
-    \begin{subfigure}[t]{0.49\linewidth}
+    \begin{subfigure}[t]{0.9\linewidth}
     \begin{tikzpicture}
         \begin{axis}[
             width=0.8\textwidth,
-            height=7cm,
+            height=5cm,
             xlabel={Batch Size},
             ylabel={VRAM (\qty{}{\giga\byte})},
             legend pos=south east,
@@ -389,52 +373,52 @@ For training speed assessment, both settings are turned off.
         \addlegendentry{Mixed Precision}
         \end{axis}
     \end{tikzpicture}
-    \caption{Desktop Computer (RTX4070)}
+    %\caption{Desktop Computer (RTX4070)}
     \end{subfigure}
-    \begin{subfigure}[t]{0.49\linewidth}
-    \begin{tikzpicture}
-        \begin{axis}[
-            width=0.8\textwidth,
-            height=7cm,
-            xlabel={Batch Size},
-            ylabel={VRAM (\qty{}{\giga\byte})},
-            legend pos=south east,
-            grid=major,
-            grid style={dashed,gray!30},
-            xmin=0,
-            ymin=0
-        ]
-        % First graph: Full Precision
-        \addplot[
-            color=blue,
-            mark=o,
-            thick
-        ] coordinates {
-            (128, 2.290)
-            (256, 4.724)
-            (512, 8.860)
-        };
-        \addlegendentry{Full Precision}
+    % \begin{subfigure}[t]{0.49\linewidth}
+    % \begin{tikzpicture}
+    %     \begin{axis}[
+    %         width=0.8\textwidth,
+    %         height=7cm,
+    %         xlabel={Batch Size},
+    %         ylabel={VRAM (\qty{}{\giga\byte})},
+    %         legend pos=south east,
+    %         grid=major,
+    %         grid style={dashed,gray!30},
+    %         xmin=0,
+    %         ymin=0
+    %     ]
+    %     % First graph: Full Precision
+    %     \addplot[
+    %         color=blue,
+    %         mark=o,
+    %         thick
+    %     ] coordinates {
+    %         (128, 2.290)
+    %         (256, 4.724)
+    %         (512, 8.860)
+    %     };
+    %     \addlegendentry{Full Precision}
 
-        % Second graph: Mixed Precision
-        \addplot[
-            color=red,
-            mark=square*,
-            thick,
-            dashed
-        ] coordinates {
-            (128, 1.52)
-            (256, 2.418)
-            (512, 4.900)
-            (768, 7.054)
-            (1024, 9.222)
-        };
-        \addlegendentry{Mixed Precision}
-        \end{axis}
-    \end{tikzpicture}
-    \caption{High-Performance Cluster ($4\times$ H100)}
-    \end{subfigure}
-    \caption{Comparison of GPU VRAM consumed for full precision and mixed precision as a function of the number of batches.}
+    %     % Second graph: Mixed Precision
+    %     \addplot[
+    %         color=red,
+    %         mark=square*,
+    %         thick,
+    %         dashed
+    %     ] coordinates {
+    %         (128, 1.52)
+    %         (256, 2.418)
+    %         (512, 4.900)
+    %         (768, 7.054)
+    %         (1024, 9.222)
+    %     };
+    %     \addlegendentry{Mixed Precision}
+    %     \end{axis}
+    % \end{tikzpicture}
+    % \caption{High-Performance Cluster ($4\times$ H100)}
+    % \end{subfigure}
+    \caption{Comparison of GPU VRAM consumed for full precision and mixed precision as a function of the number of batches on the desktop PC.}
     \label{fig:memory}
 \end{figure}
 
@@ -541,8 +525,7 @@ For training speed assessment, both settings are turned off.
 Mixed precision training via \mpx{} reduces both RAM and processing times.
 For the desktop PC, the RAM is reduced by factor $1.8\times$ and processing time by $1.7\times$.
 The speedup is caused by reduced memory loading times as the RTX4070 streaming-multiprocessors feature no computing speedup for half precision.
-The cluster features a similar behavior, where both RAM and processing times are reduced.
-RAM is reduced by factor $1.8\times$ and processing time by up to $1.57\times$.
+The cluster features a similar behavior, where processing time is reduced by up to $1.57\times$.
 
 These experiments demonstrate that mixed precision via \mpx{} allows to significantly speed up training.
 Moreover, it significantly reduces VRAM usage.
@@ -551,36 +534,17 @@ Moreover, it significantly reduces VRAM usage.
 \section{Conclusion}
 
 \mpx{} offers an easy-to-use solution for mixed-precision training in JAX.
-It is able to handling arbitrary PyTrees and provides a seamless integration with popular libraries like Equinox and Flax. 
-Through dynamic loss scaling and precision casting, MPX ensures efficient memory usage and accelerates training without compromising model accuracy. 
-The evaluation demonstrates significant reductions in RAM usage and processing times, particularly on hardware that supports half-precision computation. 
-Overall, MPX presents a compelling advancement in optimizing large-scale neural network training pipelines while maintaining flexibility and ease of use.
+It is able to handle arbitrary PyTrees and provides a seamless integration with popular libraries like Equinox and Flax. 
+At its core, \mpx{} allows casting functions to mixed precision and provides wrappers that allow to calculate gradients using mixed precision with dynamic loss scaling.
+The evaluation demonstrates significant reductions in RAM usage and processing times. 
+Overall, MPX presents a compelling toolbox for optimizing large-scale neural network training pipelines while maintaining flexibility and ease of use.
 
 
 \section{Acknowledgements}
-We express our gratitude to Patrick Kidger for Equinox and Google DeepMind for JMP, which served as the foundation for this implementation.
+We thank Patrick Kidger for providing Equinox and Google DeepMind for JMP, which served as the foundation for this implementation.
 
 The authors gratefully acknowledge the computing time provided to them at the NHR Center NHR4CES at RWTH Aachen University (project number p0021919). This is funded by the Federal Ministry of Education and Research, and the state governments participating on the basis of the resolutions of the GWK for national high performance computing at universities (\url{www.nhr-verein.de/unsere-partner}).
 
 \bibliography{references}
-
-% \begin{thebibliography}{9}
-% \bibitem{jmp} 
-% JMP: JAX mixed precision
-% \newblock \url{https://github.com/google-deepmind/jmp}
-
-% \bibitem{equinox}
-% Equinox: Neural Networks in JAX
-% \newblock \url{https://docs.kidger.site/equinox/}
-
-% \bibitem{nvidia_amp}
-% NVIDIA Automatic mixed precision
-% \newblock \url{https://developer.nvidia.com/automatic-mixed precision}
-
-% \bibitem{mixed_precision_paper}
-% P. Micikevicius et al.
-% \newblock ``mixed precision Training''
-% \newblock arXiv:1710.03740, 2017
-% \end{thebibliography}
 
 \end{document}
