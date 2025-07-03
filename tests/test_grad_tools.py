@@ -3,8 +3,8 @@ import jax
 import jax.numpy as jnp
 import equinox as eqx
 import optax
-from mpx.grad_tools import select_tree, filter_grad, filter_value_and_grad, optimizer_update, calculate_scaled_grad
-from mpx.loss_scaling import DynamicLossScaling
+from mpx import select_tree, filter_grad, filter_value_and_grad, optimizer_update, calculate_scaled_grad
+from mpx import DynamicLossScaling
 
 
 # Create a simple model for testing

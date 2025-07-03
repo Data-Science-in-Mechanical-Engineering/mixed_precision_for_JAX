@@ -2,7 +2,7 @@ import unittest
 import jax
 import jax.numpy as jnp
 import equinox as eqx
-from mpx.loss_scaling import DynamicLossScaling, all_finite, scaled
+from mpx import DynamicLossScaling, all_finite, scaled
 
 class TestLossScaling(unittest.TestCase):
     def setUp(self):

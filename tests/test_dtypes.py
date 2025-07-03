@@ -1,6 +1,6 @@
 import unittest
 import jax.numpy as jnp
-from mpx.dtypes import half_precision_datatype, set_half_precision_datatype
+from mpx import half_precision_datatype, set_half_precision_datatype
 
 class TestDtypes(unittest.TestCase):
     def test_default_half_precision(self):

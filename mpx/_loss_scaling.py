@@ -1,29 +1,3 @@
-"""
-MIT License
-
-Copyright (c) 2025 Alexander Gräfe
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-Tools for mixer precision training. Methods and general code architecture are from jmp https://github.com/google-deepmind/jmp. This can be seen as a port and extension of JMP tot equinox.
-"""
-
 """Tools for automatic loss scaling (https://docs.nvidia.com/deeplearning/performance/mixed-precision-training/index.html)."""
 
 
@@ -60,6 +34,23 @@ def all_finite(tree: PyTree) -> Array:
 
 
 def scaled(func: callable, scaling: 'DynamicLossScaling', has_aux: bool = False) -> callable:
+    """
+    Scales the output of a function using dynamic loss scaling.
+    This decorator wraps a given function such that its output is scaled using the
+    provided dynamic loss scaling object. If the wrapped function returns auxiliary
+    data (indicated by has_aux=True), only the primary value is scaled; otherwise, the
+    sole returned value is scaled.
+    Parameters:
+        func (callable): The original function whose output is to be scaled.
+        scaling (DynamicLossScaling): An object providing a `scale` method for scaling
+            the function's output.
+        has_aux (bool, optional): Flag indicating whether the wrapped function returns
+            a tuple (value, aux) where only the `value` should be scaled. Defaults to False.
+    Returns:
+        callable: A new function that wraps the original function's behavior by applying
+        the dynamic loss scaling to its result.
+    """
+
     def wrapper(*_args, **_kwargs):
         if has_aux:
             value, aux = func(*_args, **_kwargs)
@@ -80,6 +71,7 @@ class DynamicLossScaling(eqx.Module):
     numerical underflow/overflow when using reduced precision (e.g., float16). The scaling
     factor is increased periodically if gradients are finite, and decreased if non-finite
     gradients are detected, within specified bounds.
+    
     Attributes:
         loss_scaling (jnp.ndarray): Current loss scaling factor.
         min_loss_scaling (jnp.ndarray): Minimum allowed loss scaling factor.
@@ -115,15 +107,46 @@ class DynamicLossScaling(eqx.Module):
             self.counter = counter
 
     def scale(self, tree):
+        """Scales each element in the input tree by the loss scaling factor.
+        This method applies a multiplication operation to every leaf in the given pytree,
+        using the loss scaling factor (converted to jnp.float16) stored in the instance.
+        It returns a new pytree where each element has been scaled accordingly.
+
+        Parameters:
+            tree: A pytree (e.g., nested lists, tuples, dicts) containing numerical values
+                  that represent the data to be scaled.
+        Returns:
+            A new pytree with each value multiplied by the loss scaling factor as a jnp.float16.
+        """
         return jax.tree_util.tree_map(lambda x: x * self.loss_scaling.astype(jnp.float16), tree)
 
     def unscale(self, tree):
+        """
+        Unscales a pytree by multiplying each leaf element by the inverse of the loss scaling factor (in float32).
+        Parameters:
+            tree: A pytree (nested structure of arrays, lists, tuples, dicts, etc.) where each leaf is a numeric array.
+                  These numerical values will be scaled by the computed inverse loss scaling factor.
+        Returns:
+            A new pytree with the same structure as the input, where each numeric leaf is multiplied by 1 / loss_scaling (as a float32).
+        """
+
         inv_loss_scaling = 1 / self.loss_scaling
         inv_loss_scaling = inv_loss_scaling.astype(jnp.float32)   # cast to float32, so the result is float32 (otherwise the whole scaling point would be senseless)
         return jax.tree_util.tree_map(lambda x: x * inv_loss_scaling, tree)
     
     def adjust(self, grads_finite: jnp.ndarray) -> 'DynamicLossScaling':
-        """Returns the next state dependent on whether grads are finite."""
+        """
+        Adjust the loss scaling based on the finiteness of gradients and update the internal counter.
+        It follows https://docs.nvidia.com/deeplearning/performance/mixed-precision-training/index.html and is directly adopted form JMP https://github.com/google-deepmind/jmp .
+        Parameters:
+            grads_finite (jnp.ndarray):
+                A boolean scalar (0-dimensional) indicating whether all gradients are finite.
+                Must satisfy grads_finite.ndim == 0.
+        Returns:
+            DynamicLossScaling:
+                A new instance of DynamicLossScaling. Use this and replace the current instance with it.
+        """
+        
         assert grads_finite.ndim == 0, "Expected boolean scalar"
 
         first_finite = lambda a, b: jax.lax.select(jnp.isfinite(a).all(), a, b)

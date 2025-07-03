@@ -21,6 +21,8 @@
 
 % \date{}
 
+% # build: python3 -m build --sdist
+% # upload: twine upload --repository pypi dist/* 
 
 % user packages
 \usepackage{amsmath}
@@ -126,7 +128,7 @@ In the following section, we provide an overview of these features.
 \section{Implementation Details}
 
 The \mpx{} library offers essential transformations for mixed precision training while preserving JAX's low-level flexibility. 
-Similar to JMP~\citep{jmp}, implementationts design leverages JAX's type-promotion behavior\footnote{\url{https://docs.jax.dev/en/latest/jep/9407-type-promotion.html}}, ensuring that operations are executed in the precision to which inputs and outputs have been cast—provided all constants in the function are positioned on the left side of the type-promotion lattice. 
+Similar to JMP~\citep{jmp}, our implementation's design leverages JAX's type-promotion behavior\footnote{\url{https://docs.jax.dev/en/latest/jep/9407-type-promotion.html}}, ensuring that operations are executed in the precision to which inputs and outputs have been cast—provided all constants in the function are positioned on the left side of the type-promotion lattice. 
 Consequently, \mpx{} primarily focuses on casting function inputs and outputs to the desired precision.
 
 Specifically, \mpx{} first defines functions for casting PyTrees (Section~\ref{sec:castingpytrees}), then utilizes these functions to cast both general functions (Section~\ref{sec:castingfunctions}) and gradient calculations (Section~\ref{sec:castinggradients}) into mixed precision. 
@@ -323,7 +325,7 @@ On paper, the desktop PC's GPU maintains equivalent computation speeds for both 
 We train vision transformers (ViT)~\citep{dosovitskiy2020image,steiner2021train}. On the desktop PC, the transformer features a size of 256 with residual blocks containing one hidden layer of 800 neurons. T
 The cluster's transformer mirrors ViT-Base dimensions, with a feature size of 768 and residual blocks having one hidden layer of 3072 neurons.
 
-The desktop PC trains the ViT on CIFAR100 while the high-performance cluster handles ImageNet1k, dividing each batch equally across GPUs using a data-parallel approach. We train without gradient accumulation, which could further optimize runtime and memory consumption
+The desktop PC trains the ViT on CIFAR100 while the high-performance cluster handles ImageNet1k, dividing each batch equally across GPUs using a data-parallel approach. We train without gradient accumulation, which could further optimize runtime and memory consumption.
 
 We vary the number of batches and measure the time required for each training step across the entire dataset, excluding data loading times. 
 RAM usage is measured by disabling automatic preallocation and setting "XLA\_PYTHON\_CLIENT\_PREALLOCATE" to "platform," minimizing JAX's VRAM consumption\footnote{\url{https://docs.jax.dev/en/latest/gpu_memory_allocation.html}}. 
@@ -542,6 +544,8 @@ Overall, MPX presents a compelling toolbox for optimizing large-scale neural net
 
 \section{Acknowledgements}
 We thank Patrick Kidger for providing Equinox and Google DeepMind for JMP, which served as the foundation for this implementation.
+
+We thank Lukas Wildberger for helpful discussions and suggestions.
 
 The authors gratefully acknowledge the computing time provided to them at the NHR Center NHR4CES at RWTH Aachen University (project number p0021919). This is funded by the Federal Ministry of Education and Research, and the state governments participating on the basis of the resolutions of the GWK for national high performance computing at universities (\url{www.nhr-verein.de/unsere-partner}).
 

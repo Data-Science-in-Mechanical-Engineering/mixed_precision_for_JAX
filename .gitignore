@@ -223,4 +223,9 @@ cython_debug/
 .mtc
 build/
 
+_static/
+_templates/
+
 */.DS_Store
+
+_minted-main/

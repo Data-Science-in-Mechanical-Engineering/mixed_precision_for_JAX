@@ -5,7 +5,7 @@ import equinox as eqx
 from jaxtyping import Array, Float, Int, PyTree
 import numpy as np
 
-from mpx.cast import (
+from mpx import (
     cast_tree,
     cast_to_float32,
     cast_to_float16,
@@ -15,7 +15,7 @@ from mpx.cast import (
     force_full_precision,
     cast_function,
 )
-from mpx.dtypes import HALF_PRECISION_DATATYPE
+from mpx import HALF_PRECISION_DATATYPE
 
 
 class EQXModuleBase(eqx.Module):
