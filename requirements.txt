@@ -7,3 +7,5 @@ opt_einsum
 optax
 scipy
 equinox
+sphinx
+pydata-sphinx-theme
