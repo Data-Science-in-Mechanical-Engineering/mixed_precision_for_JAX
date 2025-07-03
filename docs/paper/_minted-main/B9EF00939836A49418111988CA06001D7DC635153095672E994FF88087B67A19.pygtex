@@ -1,6 +1,0 @@
-\begin{Verbatim}[commandchars=\\\{\},codes={\catcode`\$=3\catcode`\^=7\catcode`\_=8\relax}]
-\PYG{n}{loss\PYGZus{}scaling}\PYG{p}{,} \PYG{n}{grads\PYGZus{}finite}\PYG{p}{,} \PYG{n}{grads} \PYG{o}{=} \PYG{n}{mpx}\PYG{o}{.}\PYG{n}{filter\PYGZus{}grad}\PYG{p}{(}\PYG{n}{loss}\PYG{p}{,} \PYG{n}{loss\PYGZus{}scaling}\PYG{p}{)(}
-    \PYG{n}{model}\PYG{p}{,} \PYG{n}{batch}\PYG{p}{)}
-\PYG{n}{model}\PYG{p}{,} \PYG{n}{optimizer\PYGZus{}state} \PYG{o}{=} \PYG{n}{mpx}\PYG{o}{.}\PYG{n}{optimizer\PYGZus{}update}\PYG{p}{(}
-    \PYG{n}{model}\PYG{p}{,} \PYG{n}{optimizer}\PYG{p}{,} \PYG{n}{optimizer\PYGZus{}state}\PYG{p}{,} \PYG{n}{grads}\PYG{p}{,}\PYG{n}{grads\PYGZus{}finite}\PYG{p}{)}
-\end{Verbatim}
