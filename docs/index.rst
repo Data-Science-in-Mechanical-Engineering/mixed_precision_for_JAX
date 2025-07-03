@@ -6,9 +6,7 @@
 MPX documentation
 =================
 
-Add your content using ``reStructuredText`` syntax. See the
-`reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html>`_
-documentation for details.
+For basic usage, please read the README at https://github.com/Data-Science-in-Mechanical-Engineering/mixed_precision_for_JAX/
 
 
 .. toctree::
