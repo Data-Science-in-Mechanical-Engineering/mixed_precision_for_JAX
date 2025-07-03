@@ -1,10 +1,16 @@
 # mpx: Mixed Precision Training for JAX
 
+
+
 ## Installation
 Before installing the library, please make sure that you installed JAX for your given hardware.
 ```console
 pip install mixed-precision-for-JAX
 ```
+
+## Documentation
+For basic usage, this README should give you everything you need to know. 
+For deeper insights, you can find the documentation at: https://data-science-in-mechanical-engineering.github.io/mixed_precision_for_JAX/ and our paper at: TODO
 
 ## Introduction
 

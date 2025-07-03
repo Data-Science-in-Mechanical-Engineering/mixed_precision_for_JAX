@@ -2,7 +2,7 @@
 Mixed Precision for JAX - A library for mixed precision training in JAX
 """
 
-__version__ = "0.1.5"
+__version__ = "0.1.6"
 
 from ._cast import (
     cast_tree,
