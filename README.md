@@ -116,9 +116,9 @@ The loss scaling has to be initialized during the instantiation of the datasets,
 
 ```python
 
-loss_scaling = mpx.DynamicLossScaling(loss_scaling=jnp.ones((1,), dtype=jnp.float32) * int((2 - 2**(-10)) * 2**15), 
-                                        min_loss_scaling=jnp.ones((1,), dtype=jnp.float32) * 1.0, 
-                                        period=2000)
+loss_scaling = mpx.DynamicLossScaling(loss_scaling=mpx.FLOAT16_MAX, 
+                                      min_loss_scaling=jnp.ones((), dtype=jnp.float32), 
+                                      period=2000)
 ```
 The loss_scaling object then must be passed to the training pipeline.
 
