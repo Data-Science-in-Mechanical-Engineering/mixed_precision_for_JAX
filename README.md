@@ -10,7 +10,7 @@ pip install mixed-precision-for-JAX
 
 ## Documentation
 For basic usage, this README should give you everything you need to know. 
-For deeper insights, you can find the documentation at: https://data-science-in-mechanical-engineering.github.io/mixed_precision_for_JAX/ and our paper at: TODO
+For deeper insights, you can read the [documentation](https://data-science-in-mechanical-engineering.github.io/mixed_precision_for_JAX/) (https://data-science-in-mechanical-engineering.github.io/mixed_precision_for_JAX/) and our [paper](https://www.arxiv.org/pdf/2507.03312) (https://www.arxiv.org/pdf/2507.03312).
 
 ## Introduction
 
@@ -260,6 +260,21 @@ class MultiHeadAttentionBlock(eqx.Module):
         return outputs
 ```
 
+## Citation
+
+To cite this repository, please cite our [paper](https://www.arxiv.org/pdf/2507.03312):
+
+```
+@ARTICLE{2025arXiv250703312G,
+  author = {{Gr{\"a}fe}, Alexander and {Trimpe}, Sebastian},
+  title = "{MPX: Mixed Precision Training for JAX}",
+  journal = {arXiv e-prints},
+  year = 2025,
+  doi = {10.48550/arXiv.2507.03312},
+}
+
+
+``` 
 
 ## Acknowledgements
 We want to thank Partick Kidger for providing equinox and google DeepMind for providing JMP, which was the base for this implementation.
