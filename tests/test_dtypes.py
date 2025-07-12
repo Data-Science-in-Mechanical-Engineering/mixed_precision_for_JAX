@@ -3,6 +3,7 @@ import jax.numpy as jnp
 from mpx import half_precision_datatype, set_half_precision_datatype
 
 class TestDtypes(unittest.TestCase):
+
     def test_default_half_precision(self):
         """Test that the default half precision datatype is float16"""
         self.assertEqual(half_precision_datatype(), jnp.float16)
