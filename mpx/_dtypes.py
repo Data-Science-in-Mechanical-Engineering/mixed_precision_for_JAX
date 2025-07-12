@@ -1,8 +1,24 @@
 import jax.numpy as jnp
 
-HALF_PRECISION_DATATYPE = jnp.float16
-FLOAT16_MAX = jnp.ones([], dtype=jnp.float32) * (2 - 2**(-10)) * 2**15
-BFLOAT16_MAX = jnp.array([((2**8 - 1) * 2**(120))], dtype=jnp.float32)[0]
+import sys
+import types
+
+# We do to avoid that jax is directly called when importing this module.
+# This is to ensure that mpx works with distributed training.
+class _MaxConstantsLazyInit(types.ModuleType):
+    @property
+    def HALF_PRECISION_DATATYPE(self):
+        return jnp.float16
+    
+    @property
+    def FLOAT16_MAX(self):
+        return jnp.ones([], dtype=jnp.float32) * (2 - 2**(-10)) * 2**15
+    
+    @property
+    def BFLOAT16_MAX(self):
+        return jnp.array([((2**8 - 1) * 2**(120))], dtype=jnp.float32)[0]
+
+sys.modules[__name__].__class__ = _MaxConstantsLazyInit
 
 def set_half_precision_datatype(datatype):
     """
