@@ -23,8 +23,7 @@ def select_tree(pred: jnp.ndarray, a: PyTree, b: PyTree) -> PyTree:
     are selected. Non-array elements in the pytrees are taken directly from `a`.
 
     Args:
-        pred (jnp.ndarray): A scalar boolean array (`jnp.bool_`) that determines
-            which pytree to select elements from.
+        pred (jnp.ndarray): A scalar boolean array (`jnp.bool_`) that determines which pytree to select elements from.
         a (PyTree): The first pytree to select elements from.
         b (PyTree): The second pytree to select elements from.
 
@@ -57,8 +56,8 @@ def filter_grad(func, scaling: loss_scaling.DynamicLossScaling, has_aux=False, u
     Args:
         func (callable): The function to compute gradients for. This function must only use pytrees as parameters!
         has_aux (bool): If True, the function is expected to return auxiliary values along with the gradients.
-        use_mixed_precision (bool, optional): If True, the function will be cast to half
-            precision. Defaults to True.
+        use_mixed_precision (bool, optional): If True, the function will be cast to half precision. Defaults to True.
+
     Returns:
         callable: A function that computes the filtered gradients of `func`. It returns the grad, the new loss scaling, and a boolean indicating whether the gradients are finite (and the aux-value if has_aux is true).
     """
@@ -121,14 +120,13 @@ def filter_value_and_grad(func, scaling: loss_scaling.DynamicLossScaling, has_au
     """
     Wraps a function to compute its value and gradient with support for mixed precision
     and dynamic loss scaling.
+
     Args:
         func (Callable): The function for which the value and gradient are to be computed.
-        scaling (loss_scaling.DynamicLossScaling): An instance of DynamicLossScaling to
-            handle loss scaling and gradient unscaling. 
-        has_aux (bool, optional): Indicates whether the function `func` returns auxiliary
-            outputs along with the main value. Defaults to False.
-        use_mixed_precision (bool, optional): If True, the function will be cast to half
-            precision. Defaults to True.
+        scaling (loss_scaling.DynamicLossScaling): An instance of DynamicLossScaling to handle loss scaling and gradient unscaling. 
+        has_aux (bool, optional): Indicates whether the function `func` returns auxiliary outputs along with the main value. Defaults to False.
+        use_mixed_precision (bool, optional): If True, the function will be cast to half precision. Defaults to True.
+
     Returns:
         Callable: A wrapped function that computes the value, gradient, and additional
         information:

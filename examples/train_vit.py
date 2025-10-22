@@ -153,6 +153,8 @@ def train_epoch(model: eqx.Module,
     loss_value = 0
     num_datapoints = 0
     training_time = 0
+    training_times = []
+    counter = 0
     for batch in tqdm(itertools.islice(train_dataset, num_batches), disable=not show_progress and False):
         batch = jax.device_put(batch, batch_sharding)
 
@@ -174,9 +176,22 @@ def train_epoch(model: eqx.Module,
                                                     )
         
         training_time += time.time() - start_time
+        if counter > 0:
+            training_times.append(time.time() - start_time)
+        counter += 1
+        print(time.time() - start_time)
         loss_value += loss_batch.astype(jnp.float32) * len(batch["input"])
         num_datapoints += len(batch["input"])
     
+    # import matplotlib.pyplot as plt
+
+    # plt.figure(figsize=(8, 4))
+    # plt.plot(training_times, marker="o")
+    # plt.xlabel("Batch Count")
+    # plt.ylabel("Training Time (s)")
+    # plt.title("Batch Training Times")
+    # plt.grid(True)
+    # plt.show()
     return model, optimizer_state, loss_scaling, (loss_value) / (num_datapoints), training_time
 
 

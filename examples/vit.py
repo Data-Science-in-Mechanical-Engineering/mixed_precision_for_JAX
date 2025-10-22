@@ -138,7 +138,8 @@ class VIT(eqx.Module):
                                                                         subkey)
 
 
-        outputs = mpx.force_full_precision(jax.nn.softmax, outputs.dtype)(outputs[-1, :].flatten())
+        # outputs = mpx.force_full_precision(jax.nn.softmax, outputs.dtype)(outputs[-1, :].flatten())
+        outputs = jax.nn.softmax(outputs[-1, :].flatten())
 
         return outputs
 
@@ -146,12 +147,14 @@ class VIT(eqx.Module):
         """Loss function for the vit.
         """
         target_one_hot = jax.nn.one_hot(target, num_classes=pred.shape[-1], dtype=pred.dtype)
-        loss = -mpx.force_full_precision(jnp.sum, pred.dtype)(target_one_hot * mpx.force_full_precision(jnp.log)(pred + 1e-6))
+        # loss = -mpx.force_full_precision(jnp.sum, pred.dtype)(target_one_hot * mpx.force_full_precision(jnp.log)(pred + 1e-6))
+        loss = -jnp.sum(target_one_hot * jnp.log(pred + 1e-6))
         return loss
     
     def acc(self, pred, target):
         """Accuracy function for the vit.
         """
         pred = jnp.argmax(pred, axis=-1)
-        acc = mpx.force_full_precision(jnp.mean, pred.dtype)(pred == target)
+        # acc = mpx.force_full_precision(jnp.mean, pred.dtype)(pred == target)
+        acc = jnp.mean(pred == target)
         return acc

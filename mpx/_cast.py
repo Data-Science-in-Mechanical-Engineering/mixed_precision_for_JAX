@@ -143,11 +143,17 @@ def force_full_precision(func, return_dtype=jnp.float16):
     This decorator ensures that all array arguments passed to the decorated function are 
     converted to float32 precision before the function is executed. Additionally, it converts 
     the outputs of the function to the specified `return_dtype` if they are arrays.
+
+    This might come in handy for functions that become numerically unstable in lower precision.
+    Note that some jax-functions do this automatically (e.g., jnp.sum).
+
     Args:
         func (callable): The function to be decorated.
         return_dtype (dtype): The desired data type for the function's output arrays.
+
     Returns:
         callable: The wrapped function with enforced input and output precision.
+
     Example:
         @force_full_precision
         def my_function(x, y):

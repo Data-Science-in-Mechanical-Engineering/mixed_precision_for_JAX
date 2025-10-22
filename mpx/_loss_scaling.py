@@ -112,9 +112,9 @@ class DynamicLossScaling(eqx.Module):
         using the loss scaling factor (converted to jnp.float16) stored in the instance.
         It returns a new pytree where each element has been scaled accordingly.
 
-        Parameters:
-            tree: A pytree (e.g., nested lists, tuples, dicts) containing numerical values
-                  that represent the data to be scaled.
+        Args:
+            tree: A pytree (e.g., nested lists, tuples, dicts) containing numerical values that represent the data to be scaled.
+
         Returns:
             A new pytree with each value multiplied by the loss scaling factor as a jnp.float16.
         """
@@ -123,9 +123,10 @@ class DynamicLossScaling(eqx.Module):
     def unscale(self, tree):
         """
         Unscales a pytree by multiplying each leaf element by the inverse of the loss scaling factor (in float32).
-        Parameters:
-            tree: A pytree (nested structure of arrays, lists, tuples, dicts, etc.) where each leaf is a numeric array.
-                  These numerical values will be scaled by the computed inverse loss scaling factor.
+
+        Args:
+            tree: 
+                A pytree (nested structure of arrays, lists, tuples, dicts, etc.) where each leaf is a numeric array. These numerical values will be scaled by the computed inverse loss scaling factor.
         Returns:
             A new pytree with the same structure as the input, where each numeric leaf is multiplied by 1 / loss_scaling (as a float32).
         """
@@ -138,10 +139,12 @@ class DynamicLossScaling(eqx.Module):
         """
         Adjust the loss scaling based on the finiteness of gradients and update the internal counter.
         It follows https://docs.nvidia.com/deeplearning/performance/mixed-precision-training/index.html and is directly adopted form JMP https://github.com/google-deepmind/jmp .
-        Parameters:
+
+        Args:
             grads_finite (jnp.ndarray):
                 A boolean scalar (0-dimensional) indicating whether all gradients are finite.
                 Must satisfy grads_finite.ndim == 0.
+        
         Returns:
             DynamicLossScaling:
                 A new instance of DynamicLossScaling. Use this and replace the current instance with it.
