@@ -1,0 +1,811 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="./" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>mpx package &#8212; MPX  documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=a746c00c" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'mpx';</script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="mixed_precision_for_JAX" href="modules.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">MPX  documentation</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="modules.html">
+    mixed_precision_for_JAX
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="modules.html">
+    mixed_precision_for_JAX
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+<nav class="bd-docs-nav bd-links"
+     aria-label="Section Navigation">
+  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
+  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">mpx package</a></li>
+</ul>
+</div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="modules.html" class="nav-link">mixed_precision_for_JAX</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">mpx package</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="mpx-package">
+<h1>mpx package<a class="headerlink" href="#mpx-package" title="Link to this heading">#</a></h1>
+<section id="module-mpx">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-mpx" title="Link to this heading">#</a></h2>
+<p>Mixed Precision for JAX - A library for mixed precision training in JAX</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="mpx.DynamicLossScaling">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">mpx.</span></span><span class="sig-name descname"><span class="pre">DynamicLossScaling</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">loss_scaling</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_loss_scaling</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">factor</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">period</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">2000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">counter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mpx.DynamicLossScaling" title="Link to this definition">#</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></p>
+<p>Implements dynamic loss scaling for mixed precision training in JAX.
+The basic structure is taken from jmp.
+This class automatically adjusts the loss scaling factor during training to prevent
+numerical underflow/overflow when using reduced precision (e.g., float16). The scaling
+factor is increased periodically if gradients are finite, and decreased if non-finite
+gradients are detected, within specified bounds.</p>
+<dl class="simple">
+<dt>Attributes:</dt><dd><p>loss_scaling (jnp.ndarray): Current loss scaling factor.
+min_loss_scaling (jnp.ndarray): Minimum allowed loss scaling factor.
+counter (jnp.ndarray): Counter for tracking update periods.
+factor (int): Multiplicative factor for adjusting loss scaling.
+period (int): Number of steps between potential increases of loss scaling.</p>
+</dd>
+<dt>Methods:</dt><dd><dl class="simple">
+<dt>scale(tree):</dt><dd><p>Scales all leaves of a pytree by the current loss scaling factor.</p>
+</dd>
+<dt>unscale(tree):</dt><dd><p>Unscales all leaves of a pytree by the inverse of the current loss scaling factor,
+casting the result to float32.</p>
+</dd>
+<dt>adjust(grads_finite: jnp.ndarray) -&gt; ‘DynamicLossScaling’:</dt><dd><p>Returns a new DynamicLossScaling instance with updated loss scaling and counter,
+depending on whether the gradients are finite.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="mpx.DynamicLossScaling.adjust">
+<span class="sig-name descname"><span class="pre">adjust</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">grads_finite</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#mpx.DynamicLossScaling" title="mpx._loss_scaling.DynamicLossScaling"><span class="pre">DynamicLossScaling</span></a></span></span><a class="headerlink" href="#mpx.DynamicLossScaling.adjust" title="Link to this definition">#</a></dt>
+<dd><p>Adjust the loss scaling based on the finiteness of gradients and update the internal counter.
+It follows <a class="reference external" href="https://docs.nvidia.com/deeplearning/performance/mixed-precision-training/index.html">https://docs.nvidia.com/deeplearning/performance/mixed-precision-training/index.html</a> and is directly adopted form JMP <a class="github reference external" href="https://github.com/google-deepmind/jmp">google-deepmind/jmp</a> .</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>grads_finite (jnp.ndarray):</dt><dd><p>A boolean scalar (0-dimensional) indicating whether all gradients are finite.
+Must satisfy grads_finite.ndim == 0.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>DynamicLossScaling:</dt><dd><p>A new instance of DynamicLossScaling. Use this and replace the current instance with it.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mpx.DynamicLossScaling.counter">
+<span class="sig-name descname"><span class="pre">counter</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Array</span></em><a class="headerlink" href="#mpx.DynamicLossScaling.counter" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mpx.DynamicLossScaling.factor">
+<span class="sig-name descname"><span class="pre">factor</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#mpx.DynamicLossScaling.factor" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mpx.DynamicLossScaling.loss_scaling">
+<span class="sig-name descname"><span class="pre">loss_scaling</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Array</span></em><a class="headerlink" href="#mpx.DynamicLossScaling.loss_scaling" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mpx.DynamicLossScaling.min_loss_scaling">
+<span class="sig-name descname"><span class="pre">min_loss_scaling</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Array</span></em><a class="headerlink" href="#mpx.DynamicLossScaling.min_loss_scaling" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mpx.DynamicLossScaling.period">
+<span class="sig-name descname"><span class="pre">period</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#mpx.DynamicLossScaling.period" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mpx.DynamicLossScaling.scale">
+<span class="sig-name descname"><span class="pre">scale</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tree</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mpx.DynamicLossScaling.scale" title="Link to this definition">#</a></dt>
+<dd><p>Scales each element in the input tree by the loss scaling factor.
+This method applies a multiplication operation to every leaf in the given pytree,
+using the loss scaling factor (converted to jnp.float16) stored in the instance.
+It returns a new pytree where each element has been scaled accordingly.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>tree: A pytree (e.g., nested lists, tuples, dicts) containing numerical values that represent the data to be scaled.</p>
+</dd>
+<dt>Returns:</dt><dd><p>A new pytree with each value multiplied by the loss scaling factor as a jnp.float16.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mpx.DynamicLossScaling.unscale">
+<span class="sig-name descname"><span class="pre">unscale</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tree</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mpx.DynamicLossScaling.unscale" title="Link to this definition">#</a></dt>
+<dd><p>Unscales a pytree by multiplying each leaf element by the inverse of the loss scaling factor (in float32).</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>tree: </dt><dd><p>A pytree (nested structure of arrays, lists, tuples, dicts, etc.) where each leaf is a numeric array. These numerical values will be scaled by the computed inverse loss scaling factor.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>A new pytree with the same structure as the input, where each numeric leaf is multiplied by 1 / loss_scaling (as a float32).</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="mpx.all_finite">
+<span class="sig-prename descclassname"><span class="pre">mpx.</span></span><span class="sig-name descname"><span class="pre">all_finite</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tree</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PyTree</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Array</span></span></span><a class="headerlink" href="#mpx.all_finite" title="Link to this definition">#</a></dt>
+<dd><p>Checks if all elements in a PyTree of arrays are finite.</p>
+<p>This function traverses the input PyTree, extracts all array leaves, and 
+verifies whether all elements in these arrays are finite (i.e., not NaN or Inf).</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>tree (PyTree): A PyTree containing arrays to be checked for finiteness.</p>
+</dd>
+<dt>Returns:</dt><dd><p>Array: A scalar ndarray of type bool indicating whether all elements 
+in the input PyTree are finite. Returns True if all elements are finite, 
+otherwise False.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="mpx.calculate_scaled_grad">
+<span class="sig-prename descclassname"><span class="pre">mpx.</span></span><span class="sig-name descname"><span class="pre">calculate_scaled_grad</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scaling</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#mpx.DynamicLossScaling" title="mpx._loss_scaling.DynamicLossScaling"><span class="pre">DynamicLossScaling</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">has_aux</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_mixed_precision</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">PyTree</span></span></span><a class="headerlink" href="#mpx.calculate_scaled_grad" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="mpx.cast_function">
+<span class="sig-prename descclassname"><span class="pre">mpx.</span></span><span class="sig-name descname"><span class="pre">cast_function</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dtype</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_dtype</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mpx.cast_function" title="Link to this definition">#</a></dt>
+<dd><p>Casts the function to the specified data type.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="mpx.cast_to_bfloat16">
+<span class="sig-prename descclassname"><span class="pre">mpx.</span></span><span class="sig-name descname"><span class="pre">cast_to_bfloat16</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PyTree</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">PyTree</span></span></span><a class="headerlink" href="#mpx.cast_to_bfloat16" title="Link to this definition">#</a></dt>
+<dd><p>Casts the input PyTree to the bfloat16 data type.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>x (PyTree): A PyTree structure containing arrays or tensors to be cast.</p>
+</dd>
+<dt>Returns:</dt><dd><p>PyTree: A PyTree with all arrays or tensors cast to the bfloat16 data type.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="mpx.cast_to_float16">
+<span class="sig-prename descclassname"><span class="pre">mpx.</span></span><span class="sig-name descname"><span class="pre">cast_to_float16</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PyTree</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">PyTree</span></span></span><a class="headerlink" href="#mpx.cast_to_float16" title="Link to this definition">#</a></dt>
+<dd><p>Casts all elements of a PyTree to the float16 data type.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>x (PyTree): A PyTree containing numerical data to be cast to float16.</p>
+</dd>
+<dt>Returns:</dt><dd><p>PyTree: A new PyTree with all numerical elements cast to float16.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="mpx.cast_to_float32">
+<span class="sig-prename descclassname"><span class="pre">mpx.</span></span><span class="sig-name descname"><span class="pre">cast_to_float32</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PyTree</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">PyTree</span></span></span><a class="headerlink" href="#mpx.cast_to_float32" title="Link to this definition">#</a></dt>
+<dd><p>Cast the input PyTree to <cite>float32</cite> data type.</p>
+<p>This function takes a PyTree and casts all its elements to the <cite>float32</cite> data type.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>x (PyTree): The input PyTree containing elements to be cast.</p>
+</dd>
+<dt>Returns:</dt><dd><p>PyTree: A new PyTree with all elements cast to <cite>float32</cite>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="mpx.cast_to_full_precision">
+<span class="sig-prename descclassname"><span class="pre">mpx.</span></span><span class="sig-name descname"><span class="pre">cast_to_full_precision</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PyTree</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">PyTree</span></span></span><a class="headerlink" href="#mpx.cast_to_full_precision" title="Link to this definition">#</a></dt>
+<dd><p>Casts all elements of a PyTree to full precision (float32).</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>x (PyTree): The input PyTree containing elements to be cast.</p>
+</dd>
+<dt>Returns:</dt><dd><p>PyTree: A new PyTree with all elements cast to float32 precision.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="mpx.cast_to_half_precision">
+<span class="sig-prename descclassname"><span class="pre">mpx.</span></span><span class="sig-name descname"><span class="pre">cast_to_half_precision</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PyTree</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">PyTree</span></span></span><a class="headerlink" href="#mpx.cast_to_half_precision" title="Link to this definition">#</a></dt>
+<dd><p>Cast the input PyTree to half precision.</p>
+<p>This function converts all elements in the input PyTree to the half-precision
+datatype (either <cite>float16</cite> or <cite>bfloat16</cite>), depending on the configuration set
+by <cite>set_half_precision_datatype</cite>.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>x (PyTree): The input PyTree containing elements to be cast to half precision.</p>
+</dd>
+<dt>Returns:</dt><dd><p>PyTree: A new PyTree with all elements cast to the half-precision datatype.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="mpx.cast_tree">
+<span class="sig-prename descclassname"><span class="pre">mpx.</span></span><span class="sig-name descname"><span class="pre">cast_tree</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tree</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PyTree</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dtype</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mpx.cast_tree" title="Link to this definition">#</a></dt>
+<dd><p>Casts all array elements in a PyTree to a specified data type.
+This function traverses a PyTree and applies a type casting operation to all array elements with dtype float (float16, bfloat16, float32), leaving  all other elements unchanged.
+Args:</p>
+<blockquote>
+<div><p>tree (PyTree): The input PyTree containing arrays and other objects.
+dtype (numpy.dtype or str): The target data type to cast the arrays to.</p>
+</div></blockquote>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>PyTree: A new PyTree with all array elements cast to the specified data type.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="mpx.filter_grad">
+<span class="sig-prename descclassname"><span class="pre">mpx.</span></span><span class="sig-name descname"><span class="pre">filter_grad</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scaling</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#mpx.DynamicLossScaling" title="mpx._loss_scaling.DynamicLossScaling"><span class="pre">DynamicLossScaling</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">has_aux</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_mixed_precision</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">PyTree</span></span></span><a class="headerlink" href="#mpx.filter_grad" title="Link to this definition">#</a></dt>
+<dd><p>Filters the gradients of a function based on a predicate.</p>
+<p>This function computes the gradients of the given function <cite>func</cite> with respect
+to its arguments (<cite>args</cite> and <cite>kwargs</cite>). It then filters the gradients based on
+a predicate function that checks whether the gradients are finite. The filtered
+gradients are returned as a new pytree.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>func (callable): The function to compute gradients for. This function must only use pytrees as parameters!
+has_aux (bool): If True, the function is expected to return auxiliary values along with the gradients.
+use_mixed_precision (bool, optional): If True, the function will be cast to half precision. Defaults to True.</p>
+</dd>
+<dt>Returns:</dt><dd><p>callable: A function that computes the filtered gradients of <cite>func</cite>. It returns the grad, the new loss scaling, and a boolean indicating whether the gradients are finite (and the aux-value if has_aux is true).</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="mpx.filter_value_and_grad">
+<span class="sig-prename descclassname"><span class="pre">mpx.</span></span><span class="sig-name descname"><span class="pre">filter_value_and_grad</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scaling</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#mpx.DynamicLossScaling" title="mpx._loss_scaling.DynamicLossScaling"><span class="pre">DynamicLossScaling</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">has_aux</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_mixed_precision</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">PyTree</span></span></span><a class="headerlink" href="#mpx.filter_value_and_grad" title="Link to this definition">#</a></dt>
+<dd><p>Wraps a function to compute its value and gradient with support for mixed precision
+and dynamic loss scaling.</p>
+<dl>
+<dt>Args:</dt><dd><p>func (Callable): The function for which the value and gradient are to be computed.
+scaling (loss_scaling.DynamicLossScaling): An instance of DynamicLossScaling to handle loss scaling and gradient unscaling. 
+has_aux (bool, optional): Indicates whether the function <cite>func</cite> returns auxiliary outputs along with the main value. Defaults to False.
+use_mixed_precision (bool, optional): If True, the function will be cast to half precision. Defaults to True.</p>
+</dd>
+<dt>Returns:</dt><dd><p>Callable: A wrapped function that computes the value, gradient, and additional
+information:</p>
+<blockquote>
+<div><ul class="simple">
+<li><dl class="simple">
+<dt>If <cite>has_aux</cite> is True:</dt><dd><p>((value, aux), loss_scaling_new, grads_finite, grad)</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>If <cite>has_aux</cite> is False:</dt><dd><p>(value, loss_scaling_new, grads_finite, grad)</p>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+<dl class="simple">
+<dt>Where:</dt><dd><ul class="simple">
+<li><p><cite>value</cite>: The computed value of the function.</p></li>
+<li><p><cite>aux</cite>: Auxiliary outputs returned by the function (if <cite>has_aux</cite> is True).</p></li>
+<li><p><cite>loss_scaling_new</cite>: The updated loss scaling object.</p></li>
+<li><p><cite>grads_finite</cite>: A boolean indicating whether all gradients are finite.</p></li>
+<li><p><cite>grad</cite>: The computed gradients, unscaled.</p></li>
+</ul>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="mpx.force_full_precision">
+<span class="sig-prename descclassname"><span class="pre">mpx.</span></span><span class="sig-name descname"><span class="pre">force_full_precision</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_dtype=&lt;class</span> <span class="pre">'jax.numpy.float16'&gt;</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mpx.force_full_precision" title="Link to this definition">#</a></dt>
+<dd><p>A decorator to enforce full precision (float32) for the inputs and outputs of a function.
+This decorator ensures that all array arguments passed to the decorated function are 
+converted to float32 precision before the function is executed. Additionally, it converts 
+the outputs of the function to the specified <cite>return_dtype</cite> if they are arrays.</p>
+<p>This might come in handy for functions that become numerically unstable in lower precision.
+Note that some jax-functions do this automatically (e.g., jnp.sum).</p>
+<dl>
+<dt>Args:</dt><dd><p>func (callable): The function to be decorated.
+return_dtype (dtype): The desired data type for the function’s output arrays.</p>
+</dd>
+<dt>Returns:</dt><dd><p>callable: The wrapped function with enforced input and output precision.</p>
+</dd>
+<dt>Example:</dt><dd><p>&#64;force_full_precision
+def my_function(x, y):</p>
+<blockquote>
+<div><p>return x + y</p>
+</div></blockquote>
+<p># All array inputs to <cite>my_function</cite> will be cast to float32, and the output
+# will be cast to the specified <cite>return_dtype</cite> if it is an array.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="mpx.half_precision_datatype">
+<span class="sig-prename descclassname"><span class="pre">mpx.</span></span><span class="sig-name descname"><span class="pre">half_precision_datatype</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#mpx.half_precision_datatype" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="mpx.optimizer_update">
+<span class="sig-prename descclassname"><span class="pre">mpx.</span></span><span class="sig-name descname"><span class="pre">optimizer_update</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PyTree</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">optimizer</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">GradientTransformation</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">optimizer_state</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PyTree</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PyTree</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grads_finite</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Bool</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mpx.optimizer_update" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="mpx.scaled">
+<span class="sig-prename descclassname"><span class="pre">mpx.</span></span><span class="sig-name descname"><span class="pre">scaled</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">callable</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scaling</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#mpx.DynamicLossScaling" title="mpx._loss_scaling.DynamicLossScaling"><span class="pre">DynamicLossScaling</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">has_aux</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">callable</span></span></span><a class="headerlink" href="#mpx.scaled" title="Link to this definition">#</a></dt>
+<dd><p>Scales the output of a function using dynamic loss scaling.
+This decorator wraps a given function such that its output is scaled using the
+provided dynamic loss scaling object. If the wrapped function returns auxiliary
+data (indicated by has_aux=True), only the primary value is scaled; otherwise, the
+sole returned value is scaled.
+Parameters:</p>
+<blockquote>
+<div><p>func (callable): The original function whose output is to be scaled.
+scaling (DynamicLossScaling): An object providing a <cite>scale</cite> method for scaling</p>
+<blockquote>
+<div><p>the function’s output.</p>
+</div></blockquote>
+<dl class="simple">
+<dt>has_aux (bool, optional): Flag indicating whether the wrapped function returns</dt><dd><p>a tuple (value, aux) where only the <cite>value</cite> should be scaled. Defaults to False.</p>
+</dd>
+</dl>
+</div></blockquote>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>callable: A new function that wraps the original function’s behavior by applying
+the dynamic loss scaling to its result.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="mpx.select_tree">
+<span class="sig-prename descclassname"><span class="pre">mpx.</span></span><span class="sig-name descname"><span class="pre">select_tree</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pred</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">a</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PyTree</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">b</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PyTree</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">PyTree</span></span></span><a class="headerlink" href="#mpx.select_tree" title="Link to this definition">#</a></dt>
+<dd><p>Selects elements from one of two pytrees based on a scalar boolean predicate.</p>
+<p>This function traverses two input pytrees (<cite>a</cite> and <cite>b</cite>) and selects elements
+from either <cite>a</cite> or <cite>b</cite> based on the value of the scalar boolean <cite>pred</cite>. If
+<cite>pred</cite> is <cite>True</cite>, elements from <cite>a</cite> are selected; otherwise, elements from <cite>b</cite>
+are selected. Non-array elements in the pytrees are taken directly from <cite>a</cite>.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>pred (jnp.ndarray): A scalar boolean array (<cite>jnp.bool_</cite>) that determines which pytree to select elements from.
+a (PyTree): The first pytree to select elements from.
+b (PyTree): The second pytree to select elements from.</p>
+</dd>
+<dt>Returns:</dt><dd><p>PyTree: A new pytree with elements selected from <cite>a</cite> or <cite>b</cite> based on <cite>pred</cite>.</p>
+</dd>
+<dt>Raises:</dt><dd><p>AssertionError: If <cite>pred</cite> is not a scalar boolean array (<cite>jnp.bool_</cite>).</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="mpx.set_half_precision_datatype">
+<span class="sig-prename descclassname"><span class="pre">mpx.</span></span><span class="sig-name descname"><span class="pre">set_half_precision_datatype</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">datatype</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mpx.set_half_precision_datatype" title="Link to this definition">#</a></dt>
+<dd><p>Set the half precision datatype for the module.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>datatype: The datatype to set as half precision (e.g., jnp.float16).</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="modules.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">mixed_precision_for_JAX</p>
+      </div>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#module-mpx">Module contents</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mpx.DynamicLossScaling"><code class="docutils literal notranslate"><span class="pre">DynamicLossScaling</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#mpx.DynamicLossScaling.adjust"><code class="docutils literal notranslate"><span class="pre">DynamicLossScaling.adjust()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#mpx.DynamicLossScaling.counter"><code class="docutils literal notranslate"><span class="pre">DynamicLossScaling.counter</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#mpx.DynamicLossScaling.factor"><code class="docutils literal notranslate"><span class="pre">DynamicLossScaling.factor</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#mpx.DynamicLossScaling.loss_scaling"><code class="docutils literal notranslate"><span class="pre">DynamicLossScaling.loss_scaling</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#mpx.DynamicLossScaling.min_loss_scaling"><code class="docutils literal notranslate"><span class="pre">DynamicLossScaling.min_loss_scaling</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#mpx.DynamicLossScaling.period"><code class="docutils literal notranslate"><span class="pre">DynamicLossScaling.period</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#mpx.DynamicLossScaling.scale"><code class="docutils literal notranslate"><span class="pre">DynamicLossScaling.scale()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#mpx.DynamicLossScaling.unscale"><code class="docutils literal notranslate"><span class="pre">DynamicLossScaling.unscale()</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mpx.all_finite"><code class="docutils literal notranslate"><span class="pre">all_finite()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mpx.calculate_scaled_grad"><code class="docutils literal notranslate"><span class="pre">calculate_scaled_grad()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mpx.cast_function"><code class="docutils literal notranslate"><span class="pre">cast_function()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mpx.cast_to_bfloat16"><code class="docutils literal notranslate"><span class="pre">cast_to_bfloat16()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mpx.cast_to_float16"><code class="docutils literal notranslate"><span class="pre">cast_to_float16()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mpx.cast_to_float32"><code class="docutils literal notranslate"><span class="pre">cast_to_float32()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mpx.cast_to_full_precision"><code class="docutils literal notranslate"><span class="pre">cast_to_full_precision()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mpx.cast_to_half_precision"><code class="docutils literal notranslate"><span class="pre">cast_to_half_precision()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mpx.cast_tree"><code class="docutils literal notranslate"><span class="pre">cast_tree()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mpx.filter_grad"><code class="docutils literal notranslate"><span class="pre">filter_grad()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mpx.filter_value_and_grad"><code class="docutils literal notranslate"><span class="pre">filter_value_and_grad()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mpx.force_full_precision"><code class="docutils literal notranslate"><span class="pre">force_full_precision()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mpx.half_precision_datatype"><code class="docutils literal notranslate"><span class="pre">half_precision_datatype()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mpx.optimizer_update"><code class="docutils literal notranslate"><span class="pre">optimizer_update()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mpx.scaled"><code class="docutils literal notranslate"><span class="pre">scaled()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mpx.select_tree"><code class="docutils literal notranslate"><span class="pre">select_tree()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mpx.set_half_precision_datatype"><code class="docutils literal notranslate"><span class="pre">set_half_precision_datatype()</span></code></a></li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+  <div class="sidebar-secondary-item">
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/mpx.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2025, Alexander Gräfe.
+      <br/>
+    
+  </p>
+</div>
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.2.3.
+    <br/>
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.16.1.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>
