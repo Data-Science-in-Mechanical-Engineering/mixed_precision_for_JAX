@@ -1,4 +1,4 @@
-\documentclass[copyright, logo]{dsme}
+\documentclass[logo]{dsme}
 
 \usepackage[authoryear, sort&compress, round]{natbib}
 \bibliographystyle{abbrvnat}
@@ -150,7 +150,7 @@ Excluding integer arrays is crucial to prevent accidental casting of random gene
 For casting entire functions, \mpx{} provides the transformation \texttt{cast\_function(func, dtype, return\_dtype=None)}. 
 This transformation returns a new function that first applies the specified input data type to all inputs (via \texttt{cast\_tree(tree, dtype)}), then calls the original function, and finally casts the outputs to the specified (optional) return data type. 
 Furthermore, \mpx{} includes \texttt{force\_full\_precision(func, return\_dtype)}, which ensures computations are carried out in full precision. 
-This feature is particularly important for operations that are prone to overflow in \texttt{float16}, such as \texttt{sum}, \texttt{mean}, or \texttt{softmax}.
+This feature is particularly important for operations that are prone to overflow in \texttt{float16}.
 
 
 \subsection{Automatic Loss Scaling}

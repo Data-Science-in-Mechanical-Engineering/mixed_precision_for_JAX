@@ -45,7 +45,6 @@ The main goal was to keep the library as flexible and as close to `equinox` as p
 As a result, to update a training pipeline to work with mixed precision, one just have to:
 - Update the gradient calculations from `eqx.filter_grad/filter_value_and_grad` to `mpx.filter_grad/filter_value_and_grad`.
 - Do the `optax` optimizer call via `mpx.optimizer_update`.
-- Force critical operations like sum, mean and softmax to full precision using `mpx.force_full_precision`.
 Here are the key components:
 
 ### Data Type Management
@@ -60,7 +59,7 @@ Here are the key components:
 - `cast_to_float32(x: PyTree)`: Cast all JAX arrays in a PyTree to `float32`
 
 ### Precision Control
-- `force_full_precision`: A decorator that ensures a function performs all calculations in `float32`. This is essential for maintaining numerical stability in operations like mean, sum, and softmax. Currently, this has to be done by hand, i.e., **`mpx` does not identify critical operations and forces the to full precision, like AMP of PyTorch**. This unfortunately also means that provided neural network functions from equinox or flax that include these critical operations (e.g., equinox.nn.MultiheadAttention) must be rewritten by hand (please refer to our example). In a future release, we plan to provide a library that includes typical neural network functions, like Attention, that are ready for mixed precision. 
+- `force_full_precision`: A decorator that ensures a function performs all calculations in `float32`. This is essential for maintaining numerical stability in some operations. Some critical operations in JAX, like `jax.numpy.sum/mean`, internally convert half precision to full precision. The same is true for common equinox layers like `equinox.nn.MultiheadAttention` that also force critical parts to full precision. However, this function might be useful for other implementations that do not do this.
 
 ### Loss Scaling
 - `DynamicLossScaling`: A class that manages dynamic loss scaling to prevent underflow in half precision training. It is syntactically equivalent to `jmp.DynamicLossScaling`, however it can scale arbitrary PyTrees.
@@ -165,100 +164,6 @@ def make_step(model: eqx.Module,
 ```
 
 Through the transformation via `mpx.filter_value_and_grad`, we can write our loss function as we normally do when using JAX/Equinox.
-Only critical operations, like mean need to be forced to full precision.
-```python
-@eqx.filter_jit
-def batched_loss_acc_wrapper(model, batch, batch_sharding, replicated_sharding, key, weight_regularization=0.0):
-    batch = eqx.filter_shard(batch, batch_sharding)
-    model = eqx.filter_shard(model, replicated_sharding)
-
-    pred = predict_batch(model, batch, False, key)
-
-    target = batch["target"]    
-    losses = jax.vmap(model.loss)(pred, target)
-    acc = jax.vmap(model.acc)(pred, target)
-
-    # especially for high batch sizes the mean calculation can overflow, hence force it to full precision.
-    loss = mpx.force_full_precision(jnp.mean, losses.dtype)(losses)
-    acc = mpx.force_full_precision(jnp.mean, losses.dtype)(acc)
-
-    # weight regularization can help in mixed precision training.
-    # It keeps the weights small and prevents overflow during matrix multiplication.
-    params, _ = eqx.partition(model, eqx.is_array)
-    params = jax.tree_util.tree_leaves(params)
-    params = jax.tree_util.tree_map(lambda x: x.flatten(), params)
-    params = jnp.concatenate(params).flatten()
-
-    loss = loss + weight_regularization * mpx.force_full_precision(jnp.mean, jnp.float32)(jnp.abs(params))
-
-    return loss, acc
-```
-
-The same holds for the neural network. Here, only critical operations like layernorm and softmax must be forced to full precision.
-This means, as long as your layer does not contain such operations, you can rely on standard `equinox.nn` implementations. For other layers, the only solution so far is to reimplement them and force critical operations to full precision.
-
-```python
-class MultiHeadAttentionBlock(eqx.Module):
-    dense_qs: DenseLayer
-    dense_ks: DenseLayer
-    dense_vs: DenseLayer
-
-    dense_o: DenseLayer
-
-    num_heads: int
-
-    dropout: eqx.nn.Dropout
-    layer_norm: eqx.nn.LayerNorm
-
-    ...
-
-    @staticmethod
-    def attention(q: Array,
-                  k: Array,
-                  v: Array,
-                  dropout: eqx.nn.Dropout,
-                  key: PRNGKeyArray, 
-                  inference: bool) -> Array:
-        attention_scores = q @ k.T
-        attention_scores /= jnp.sqrt(q.shape[-1])
-
-        # softmax is critical
-        attention_scores = mpx.force_full_precision(jax.nn.softmax, attention_scores.dtype)(attention_scores, axis=-1)
-
-        attention_scores = dropout(attention_scores, inference=inference, key=key)
-        return attention_scores @ v
-
-    def __call__(self, inputs: Array, inference: bool, key: PRNGKeyArray) -> Array:
-        # also force layernorm to full precision.
-        inputs_after_layernorm = jax.vmap(mpx.force_full_precision(self.layer_norm, inputs.dtype))(inputs)
-        qs = jax.vmap(self.dense_qs)(inputs_after_layernorm)
-        ks = jax.vmap(self.dense_ks)(inputs_after_layernorm)
-        vs = jax.vmap(self.dense_vs)(inputs_after_layernorm)
-
-        qs = es.jax_einshape("n(hf)->hnf", qs, h=self.num_heads)
-        ks = es.jax_einshape("n(hf)->hnf", ks, h=self.num_heads)
-        vs = es.jax_einshape("n(hf)->hnf", vs, h=self.num_heads)
-
-        keys = jax.random.split(key, self.num_heads)
-
-        outputs = jax.vmap(self.attention, in_axes=(0, 0, 0, None, 0, None))(
-            qs, 
-            ks,
-            vs,
-            self.dropout,
-            keys,
-            inference)
-
-        # reshape outputs (concatenate heads)
-        outputs = es.jax_einshape("hnf->n(hf)", outputs)
-
-        key, key2 = jax.random.split(key)
-        outputs = jax.vmap(self.dense_o)(outputs)
-        outputs = self.dropout(outputs, inference=inference, key=key2)
-        outputs += inputs
-
-        return outputs
-```
 
 ## Citation
 

@@ -179,7 +179,6 @@ def train_epoch(model: eqx.Module,
         if counter > 0:
             training_times.append(time.time() - start_time)
         counter += 1
-        print(time.time() - start_time)
         loss_value += loss_batch.astype(jnp.float32) * len(batch["input"])
         num_datapoints += len(batch["input"])
     

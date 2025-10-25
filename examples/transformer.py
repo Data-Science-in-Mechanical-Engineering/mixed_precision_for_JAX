@@ -41,7 +41,7 @@ class ResidualBlock(eqx.Module):
     i.e. y = LayerNorm(MLP(x) + Residual(x)), where Resiudual(x) = x if transform_residual is False and Residual(x) = DenseLayer(x) if transform_residual is True
     """
 
-    layers: list[DenseLayer]
+    layers: list[eqx.nn.Linear]
     residual_layer: DenseLayer | None
     dropout: eqx.nn.Dropout
 
@@ -65,23 +65,23 @@ class ResidualBlock(eqx.Module):
         layers = []
         pruning_masks = []
         key, subkey = jax.random.split(key)
-        layers.append(DenseLayer(input_dim, feature_dim, subkey))
+        layers.append(eqx.nn.Linear(input_dim, feature_dim, key=subkey))
 
         if num_layers >= 2:
             for _ in range(num_layers - 2):
                 key, subkey = jax.random.split(key)
-                layers.append(DenseLayer(feature_dim, 
+                layers.append(eqx.nn.Linear(feature_dim, 
                                     feature_dim,
-                                    subkey))
+                                    key=subkey))
             
             key, subkey = jax.random.split(key)
-            layers.append(DenseLayer(feature_dim, output_dim, subkey))
+            layers.append(eqx.nn.Linear(feature_dim, output_dim, key=subkey))
         
         self.layers = layers
 
         assert transform_residual or input_dim == output_dim, "input_dim must be equal to output_dim if transform_residual is False"
         if transform_residual:
-            self.residual_layer = DenseLayer(input_dim, output_dim, key)
+            self.residual_layer = eqx.nn.Linear(input_dim, output_dim, key=key)
         else:
             self.residual_layer = None
 
@@ -110,7 +110,6 @@ class ResidualBlock(eqx.Module):
             outputs = self.activation_fn(outputs)
 
             for i, layer in enumerate(self.layers[1:-1]):
-                key, subkey = jax.random.split(key)
                 outputs = self.activation_fn(layer(outputs))
 
             outputs = self.layers[-1](outputs)
@@ -128,11 +127,7 @@ class ResidualBlock(eqx.Module):
     
 
 class MultiHeadAttentionBlock(eqx.Module):
-    dense_qs: DenseLayer 
-    dense_ks: DenseLayer
-    dense_vs: DenseLayer
-
-    dense_o: DenseLayer
+    attention: eqx.nn.MultiheadAttention
 
     num_heads: int
 
@@ -147,16 +142,11 @@ class MultiHeadAttentionBlock(eqx.Module):
         self.num_heads = num_heads
 
         key, subkey = jax.random.split(key)
-        self.dense_qs = DenseLayer(feature_dim, feature_dim, subkey)
-
-        key, subkey = jax.random.split(key)
-        self.dense_ks = DenseLayer(feature_dim, feature_dim, subkey)
-
-        key, subkey = jax.random.split(key)
-        self.dense_vs = DenseLayer(feature_dim, feature_dim, subkey)
-
-        key, subkey = jax.random.split(key)
-        self.dense_o = DenseLayer(feature_dim, feature_dim, subkey)
+        self.attention = eqx.nn.MultiheadAttention(
+            num_heads=num_heads,
+            query_size=feature_dim,
+            dropout_p=dropout_rate,
+            key=subkey)
 
         self.dropout = eqx.nn.Dropout(dropout_rate)
         self.layer_norm = eqx.nn.LayerNorm(feature_dim)
@@ -175,38 +165,12 @@ class MultiHeadAttentionBlock(eqx.Module):
         return attention_scores @ v
 
     def __call__(self, inputs: Array, inference: bool, key: PRNGKeyArray) -> Array:
-        inputs_after_layernorm = jax.vmap(mpx.force_full_precision(self.layer_norm, inputs.dtype))(inputs)
-        qs = jax.vmap(self.dense_qs)(inputs_after_layernorm)
-        ks = jax.vmap(self.dense_ks)(inputs_after_layernorm)
-        vs = jax.vmap(self.dense_vs)(inputs_after_layernorm)
-
-        # reshape such that the first dimension is the head, the second the time and the third the features
-        # The nth num_heads / num_devices heads belong to the nth device
-        # As we combine the heads in the last dimension, for the input, the first num_heads / num_devices * num_features
-        # belong to the first device, and so on. This is important as we apply the same pruning mask as for dense layers.
-        # When reshaping, we need to take these chunkks (i.e., result[:, 0: num_heads / num_devices * num_features]) and put them into
-        # the coresponding heads (i.e. to result[0:num_heads / num_devices, 0: num_features]).
-        # This is exactly what the einshape call does.
-        # result = es.jax_einshape("n(hf)->hnf", result, h=self.num_heads)
-        qs = es.jax_einshape("n(hf)->hnf", qs, h=self.num_heads)
-        ks = es.jax_einshape("n(hf)->hnf", ks, h=self.num_heads)
-        vs = es.jax_einshape("n(hf)->hnf", vs, h=self.num_heads)
-
-        keys = jax.random.split(key, self.num_heads)
-
-        outputs = jax.vmap(self.attention, in_axes=(0, 0, 0, None, 0, None))(
-            qs, 
-            ks,
-            vs,
-            self.dropout,
-            keys,
-            inference)
-
-        # reshape outputs (concatenate heads)
-        outputs = es.jax_einshape("hnf->n(hf)", outputs)
+        inputs_after_layernorm = jax.vmap(self.layer_norm)(inputs)
+        
+        key, subkey = jax.random.split(key)
+        outputs = self.attention(inputs_after_layernorm, inputs_after_layernorm, inputs_after_layernorm, key=subkey, inference=inference)
 
         key, key2 = jax.random.split(key)
-        outputs = jax.vmap(self.dense_o)(outputs)
         outputs = self.dropout(outputs, inference=inference, key=key2)
         outputs += inputs
 
