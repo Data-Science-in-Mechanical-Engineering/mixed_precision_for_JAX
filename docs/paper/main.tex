@@ -1,4 +1,5 @@
 \documentclass[logo]{dsme}
+% \documentclass[twocolumn]{article}
 
 \usepackage[authoryear, sort&compress, round]{natbib}
 \bibliographystyle{abbrvnat}
@@ -168,22 +169,22 @@ This class manages dynamic loss scaling through the following methods:
 Because \texttt{DynamicLossScaling} inherits from \texttt{eqx.Module}, it is itself a PyTree. 
 Consequently, it can be used within \texttt{jit}-compiled functions and also be used for multi-device and multi-node training using replicated sharding.
 
-\begin{figure}[t]
-    \centering
-    \begin{subfigure}[t]{0.99\textwidth}
-        \centering
-        \includegraphics[width=0.99\textwidth]{assets/EQXOverview.pdf}
-        \caption{Full Precision Training via Equinox}
-        \vspace{0.2cm}
-    \end{subfigure}\hspace{0.1cm}
-    \begin{subfigure}[t]{0.99\textwidth}
-        \centering
-        \includegraphics[width=0.99\textwidth]{assets/MPXOverview.pdf}
-        \caption{Half Precision Training via Equinox and \mpx{}}
-    \end{subfigure}\hspace{0.1cm}
-    \caption{Transformation of training pipelines via MPX. \capt{An existing training pipeline (Top figure) can be transformed, by applying \texttt{@mpx.filter\_grad} to the forward pass. It automatically casts all inputs to half precision and calculates the gradient via dynamic loss scaling and \texttt{eqx.filter\_grad}.}}
-    \label{fig:overview}
-\end{figure}
+% \begin{figure}[t]
+%     \centering
+%     \begin{subfigure}[t]{0.99\textwidth}
+%         \centering
+%         \includegraphics[width=0.99\textwidth]{assets/EQXOverview.pdf}
+%         \caption{Full Precision Training via Equinox}
+%         \vspace{0.2cm}
+%     \end{subfigure}\hspace{0.1cm}
+%     \begin{subfigure}[t]{0.99\textwidth}
+%         \centering
+%         \includegraphics[width=0.99\textwidth]{assets/MPXOverview.pdf}
+%         \caption{Half Precision Training via Equinox and \mpx{}}
+%     \end{subfigure}\hspace{0.1cm}
+%     \caption{Transformation of training pipelines via MPX. \capt{An existing training pipeline (Top figure) can be transformed, by applying \texttt{@mpx.filter\_grad} to the forward pass. It automatically casts all inputs to half precision and calculates the gradient via dynamic loss scaling and \texttt{eqx.filter\_grad}.}}
+%     \label{fig:overview}
+% \end{figure}
 
 \subsection{Transformations to Cast Gradient Calculation}
 \label{sec:castinggradients}
@@ -228,59 +229,60 @@ Thus, instead of calling \texttt{optimizer.update} followed by \texttt{eqx.apply
 In this section, we provide an example to demonstrate the changes required in a training pipeline for mixed precision training via \mpx{}.
 
 \subsection{Model Implementation}
+\label{sec:eqxvsmpxmodelupdate}
 
-\begin{example}[t]
-\begin{pbox}[]{}
-\begin{minted}[linenos, breaklines, mathescape, fontsize=\footnotesize, xleftmargin=2em]{python}
-class MultiHeadAttentionBlock(eqx.Module):
-    dense_qs: eqx.nn.Linear
-    dense_ks: eqx.nn.Linear
-    dense_vs: eqx.nn.Linear
-    dense_o: eqx.nn.Linear
-    num_heads: int
-    layer_norm: eqx.nn.LayerNorm
+% \begin{example}[t]
+% \begin{pbox}[]{}
+% \begin{minted}[linenos, breaklines, mathescape, fontsize=\footnotesize, xleftmargin=2em]{python}
+% class MultiHeadAttentionBlock(eqx.Module):
+%     dense_qs: eqx.nn.Linear
+%     dense_ks: eqx.nn.Linear
+%     dense_vs: eqx.nn.Linear
+%     dense_o: eqx.nn.Linear
+%     num_heads: int
+%     layer_norm: eqx.nn.LayerNorm
 
-    def __init__(self, feature_dim, num_heads, key):
-        self.num_heads = num_heads
-        key, subkey = jax.random.split(key)
-        self.dense_qs = eqx.nn.Linear(
-            feature_dim, feature_dim, key=subkey)
-        # same for dense_ks, dense_vs, dense_o
+%     def __init__(self, feature_dim, num_heads, key):
+%         self.num_heads = num_heads
+%         key, subkey = jax.random.split(key)
+%         self.dense_qs = eqx.nn.Linear(
+%             feature_dim, feature_dim, key=subkey)
+%         # same for dense_ks, dense_vs, dense_o
 
-        self.layer_norm = eqx.nn.LayerNorm(feature_dim)
+%         self.layer_norm = eqx.nn.LayerNorm(feature_dim)
 
-    def attention(q, k, v):
-        attention_scores = q @ k.T / jnp.sqrt(q.shape[-1])
-        attention_scores = mpx.force_full_precision(
-            jax.nn.softmax, attention_scores.dtype)(attention_scores, axis=-1)
-        return attention_scores @ v
+%     def attention(q, k, v):
+%         attention_scores = q @ k.T / jnp.sqrt(q.shape[-1])
+%         attention_scores = mpx.force_full_precision(
+%             jax.nn.softmax, attention_scores.dtype)(attention_scores, axis=-1)
+%         return attention_scores @ v
     
-    def __call__(self, inputs):
-        inputs_after_layernorm = jax.vmap(mpx.force_full_precision(
-            self.layer_norm, inputs.dtype))(inputs)
-        qs = jax.vmap(self.dense_qs)(inputs_after_layernorm)
-        qs = es.jax_einshape("n(hf)->hnf", qs, h=self.num_heads)
-        # same for ks and vs...
+%     def __call__(self, inputs):
+%         inputs_after_layernorm = jax.vmap(mpx.force_full_precision(
+%             self.layer_norm, inputs.dtype))(inputs)
+%         qs = jax.vmap(self.dense_qs)(inputs_after_layernorm)
+%         qs = es.jax_einshape("n(hf)->hnf", qs, h=self.num_heads)
+%         # same for ks and vs...
 
-        outputs = jax.vmap(self.attention, in_axes=(0, 0, 0))(qs, ks, vs)
-        outputs = es.jax_einshape("hnf->n(hf)", outputs)
-        outputs = jax.vmap(self.dense_o)(outputs)
-        outputs += inputs
+%         outputs = jax.vmap(self.attention, in_axes=(0, 0, 0))(qs, ks, vs)
+%         outputs = es.jax_einshape("hnf->n(hf)", outputs)
+%         outputs = jax.vmap(self.dense_o)(outputs)
+%         outputs += inputs
 
-        return outputs
-\end{minted}
-\end{pbox}
-\caption{Implementation of multi-headed self-attention via MPX. \capt{For the largest part, the model can be implemented in common toolboxes (here, Equinox~\citep{kidger2021equinox}). Only critical function that should be implemented in full precision, like softmax or layernorm (due to mean and std calculations), have to be transformed via \mpx{}.}}
-\label{ex:model}
-\end{example}
+%         return outputs
+% \end{minted}
+% \end{pbox}
+% \caption{Implementation of multi-headed self-attention via MPX. \capt{For the largest part, the model can be implemented in common toolboxes (here, Equinox~\citep{kidger2021equinox}). Only critical function that should be implemented in full precision, like softmax or layernorm (due to mean and std calculations), have to be transformed via \mpx{}.}}
+% \label{ex:model}
+% \end{example}
 
 For the largest part, the implementation of the model must not be changed.
 As \mpx{} works with arbitrary PyTrees, every Toolbox that defines their model/parameters as PyTrees, like Flax~\citep{flax2020github} or Equinox~\citep{kidger2021equinox} can be used in conjunction with \mpx{} (Example~\ref{ex:model}). 
-Only parts of the model that contain critical operations with a high risk of overflows, like sum or mean, must be transformed to full precision via \texttt{mpx.force\_full\_precision}.
+Only parts of the model that contain critical operations with a high risk of overflows, must be transformed to full precision via \texttt{mpx.force\_full\_precision}.
+However, many jax and also equinox already implement many critical functions in a numerically stable way by casting to full precision if necessary, so that only few changes are necessary.
 
-
-\subsection{Model Updates}
-\label{sec:eqxvsmpxmodelupdate}
+% \subsection{Model Updates}
+% \label{sec:eqxvsmpxmodelupdate}
 Model updates via \mpx{} closely resemble those performed with Equinox (Example~\ref{ex:update}). 
 Instead of calling \texttt{eqx.filter\_grad}, \texttt{mpx.filter\_grad} is used. Similarly, \texttt{mpx.optimizer\_update} replaces invoking the Optax optimizer followed by a model update.
 The remainder of the training step—such as loading batches, sharding the model and batch—remains unchanged. 
