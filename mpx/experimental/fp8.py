@@ -43,15 +43,10 @@ def quantized_multiplication_fwd(a: ArrayLike, b: ArrayLike, dtype8, dimension_n
 
 # f_bwd :: (c, CT b) -> CT a
 def quantized_multiplication_bwd(dtype8, dimension_numbers, precision, preferred_element_type, out_sharding, c, dy_dc):
-  print("--------")
-  print(c)
-  print(dy_dc)
   a_q, b_q, scaling_a, scaling_b = c
   # backward is performed in fp32 TODO allow to change it.
   a = a_q.astype(jnp.float32) / scaling_a
   b = b_q.astype(jnp.float32) / scaling_b
-  print(dy_dc.shape)
-  print(b.shape)
   dy_da = jax.lax.dot_general_p.bind(dy_dc, b.T, dimension_numbers=dimension_numbers, precision=precision, preferred_element_type=preferred_element_type, out_sharding=out_sharding)
   dy_db = jax.lax.dot_general_p.bind(a.T, dy_dc, dimension_numbers=dimension_numbers, precision=precision, preferred_element_type=preferred_element_type, out_sharding=out_sharding)
 
@@ -61,8 +56,6 @@ quantized_multiplication.defvjp(quantized_multiplication_fwd, quantized_multipli
 
 @quax.register(jax.lax.dot_general_p)
 def _(lhs: ArrayLike, rhs: ArrayLike, **params):
-    print("Performing a matmul!")
-    print(params)
     return quantized_multiplication(lhs, rhs, jnp.float8_e4m3, **params)
 
 if __name__ == "__main__":
