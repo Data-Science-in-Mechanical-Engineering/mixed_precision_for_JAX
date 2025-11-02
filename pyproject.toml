@@ -8,6 +8,7 @@ name = "mixed-precision-for-JAX"
 dynamic = ["version"]
 dependencies = [
   "equinox",
+  "quax",
   "optax",
   "jax>=0.4.38", 
   "jaxtyping>=0.2.20", 

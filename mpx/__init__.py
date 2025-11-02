@@ -14,7 +14,7 @@ from ._cast import (
     force_full_precision,
     cast_function,
 )
-from ._dtypes import half_precision_datatype, set_half_precision_datatype, HALF_PRECISION_DATATYPE  # , FLOAT16_MAX, BFLOAT16_MAX
+from ._dtypes import half_precision_datatype, set_half_precision_datatype, HALF_PRECISION_DATATYPE, set_forward_backward_precision, forward_datatype, backward_datatype  # , FLOAT16_MAX, BFLOAT16_MAX
 from ._loss_scaling import DynamicLossScaling, all_finite, scaled
 from ._grad_tools import select_tree, filter_grad, filter_value_and_grad, optimizer_update, calculate_scaled_grad
 
@@ -49,6 +49,9 @@ __all__ = [
     # Dtype functions
     'half_precision_datatype',
     'set_half_precision_datatype',
+    'set_forward_backward_precision',
+    'forward_datatype',
+    'backward_datatype',
     
     # Loss scaling functions
     'DynamicLossScaling',
