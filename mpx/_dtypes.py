@@ -42,10 +42,11 @@ def set_forward_backward_precision(forward_datatype, backward_datatype):
     global EXPERIMENTAL_ACTIVATED
     global FORWARD_PRECISION_DATATYPE
     global BACKWARD_PRECISION_DATATYPE
-    logging.warning("Setting forward precision is an experimental feature and may lead to unexpected behavior.")
+    logging.warning("Setting forward backward precision is an experimental feature and may lead to unexpected behavior.")
     EXPERIMENTAL_ACTIVATED = True
     FORWARD_PRECISION_DATATYPE = forward_datatype
     BACKWARD_PRECISION_DATATYPE = backward_datatype
+    assert backward_datatype == jnp.float32, "Currently only float32 is supported as backward datatype."
 
 def forward_datatype():
     assert EXPERIMENTAL_ACTIVATED, "Experimental features not activated. Call set_forward_backward_precision first."
